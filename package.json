@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "directories": {
-    "test": "tests"
-  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "playwright test"
   },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0"
+  },
+  "type": "commonjs",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Sonamburbure/PlaywriteTypescriptForAPITesting.git"
@@ -16,7 +17,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/Sonamburbure/PlaywriteTypescriptForAPITesting/issues"
   },
