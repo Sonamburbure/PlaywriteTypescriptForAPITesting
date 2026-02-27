@@ -1,31 +1,41 @@
-import { request, expect, APIRequestContext } from '@playwright/test';
-import { BASE_API_URL, LOGON_AS } from '../utils/constants.js';
-import { getAuthToken, getTenantPath } from '../utils/tokenStore.js';
+import { getAuthToken, getTenantPath, getLogonAs } from '../utils/tokenStore.js';
+import { BASE_API_URL } from '../utils/constants.js';
+import type { APIRequestContext } from '@playwright/test';
 
 export class SubsidiaryApi {
-  private apiContext?: APIRequestContext;
+  private apiContext: APIRequestContext;
 
-  async init() {
-    if (!this.apiContext) {
-      this.apiContext = await request.newContext();
-    }
+  constructor(apiContext: APIRequestContext) {
+    this.apiContext = apiContext;
   }
 
   async createSubsidiary(payload: any) {
-    await this.init();
+    const token = getAuthToken();
+    const tenantPath = getTenantPath();
+    const logonAs = getLogonAs();
 
-    const response = await this.apiContext!.post(
-      `${BASE_API_URL}/${getTenantPath()}/api/${LOGON_AS}/customer`,
+    if (!token || !tenantPath || !logonAs) {
+      throw new Error('Missing authentication token, tenant path, or logonAs value');
+    }
+
+    const response = await this.apiContext.post(
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/customer`,
       {
         headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         data: payload,
       }
     );
 
-    expect(response.ok()).toBeTruthy();
-    return await response.json();
+    if (!response.ok()) {
+      const errorBody = await response.json();
+      throw new Error(
+        `Create subsidiary failed: ${response.status()} ${JSON.stringify(errorBody)}`
+      );
+    }
+
+    return response.json();
   }
 }

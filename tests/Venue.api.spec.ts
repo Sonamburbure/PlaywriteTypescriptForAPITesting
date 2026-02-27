@@ -12,7 +12,7 @@ import { BASE_API_URL, EMAIL, PASSWORD } from '../src/utils/constants.js';
 /* ---------------- UK PLACE DATA ---------------- */
 
 const UK_PLACES = [
-  'London', 'Manchester', 'Birmingham', 'Leeds', 'Liverpool',
+  'London', 'Manchester', 'A', 'Leeds', 'Liverpool',
   'Bristol', 'Nottingham', 'Sheffield', 'Leicester', 'Coventry',
   'Oxford', 'Cambridge', 'York', 'Bath', 'Reading',
   'Milton Keynes', 'Luton', 'Watford', 'Slough', 'Woking'

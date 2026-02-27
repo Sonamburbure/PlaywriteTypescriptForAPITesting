@@ -1,6 +1,9 @@
 import { APIRequestContext } from '@playwright/test';
 
 export class AuthApi {
+  fetchTenantOptions() {
+    throw new Error('Method not implemented.');
+  }
   private apiContext: APIRequestContext;
 
   constructor(apiContext: APIRequestContext) {
