@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "esnext",                // modern JS output
+    "module": "nodenext",              // ES modules with Node.js resolution
+    "moduleResolution": "nodenext",   // Node.js ESM resolution
+    "esModuleInterop": true,          
+
+    "strict": true,                   // enable strict checks
+    "isolatedModules": true,         
+
+    "declaration": true,              // generate .d.ts files
+    "sourceMap": true,                
+
+    "skipLibCheck": true,             
+
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src", "tests"],        // adjust to your source folders
+  "exclude": ["node_modules"]
+}

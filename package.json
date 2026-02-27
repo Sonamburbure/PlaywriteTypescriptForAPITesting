@@ -1,0 +1,25 @@
+{
+  "name": "playwrightproject",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+  "api:stage": "cross-env ENV_FILE=.env.stage TEST_TYPE=api npx playwright test --project=api",
+  "api:prod": "cross-env ENV_FILE=.env.prod TEST_TYPE=api npx playwright test --project=api",
+  "ui:stage": "cross-env ENV_FILE=.env.stage TEST_TYPE=ui npx playwright test --project=ui",
+  "ui:prod": "cross-env ENV_FILE=.env.prod TEST_TYPE=ui npx playwright test --project=ui",
+  "report": "npx playwright show-report"
+
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "cross-env": "^10.1.0",
+    "playwright": "^1.58.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1"
+  }
+}
