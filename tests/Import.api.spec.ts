@@ -8,7 +8,12 @@ import {
 } from '../src/utils/tokenStore.js';
 import { BASE_API_URL, EMAIL, PASSWORD } from '../src/utils/constants.js';
 import fs from 'fs';
-import path from 'path';
+import path, { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+// ---------------- FIX FOR __dirname IN ES MODULE ----------------
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /* ---------------- AUTH API ---------------- */
 
@@ -53,7 +58,7 @@ class AuthApi {
 test('API only: login and run sequential imports', async () => {
   const authApi = new AuthApi();
 
-  /* ---------- 1️⃣ FETCH TENANT ---------- */
+  // ---------- 1️⃣ FETCH TENANT ----------
   const tenants = await authApi.fetchTenantOptions();
 
   const tenant = tenants.find(
@@ -65,7 +70,7 @@ test('API only: login and run sequential imports', async () => {
     throw new Error('Tenant not found');
   }
 
-  /* ---------- 2️⃣ LOGIN ---------- */
+  // ---------- 2️⃣ LOGIN ----------
   const loginResponse = await authApi.login(
     EMAIL,
     PASSWORD,
@@ -83,10 +88,10 @@ test('API only: login and run sequential imports', async () => {
   expect(token).toBeTruthy();
   expect(tenantPath).toBeTruthy();
 
-  /* ---------- 3️⃣ CREATE API CONTEXT ---------- */
+  // ---------- 3️⃣ CREATE API CONTEXT ----------
   const apiContext = await request.newContext();
 
-  /* ---------- 4️⃣ IMPORT CONFIGURATION ---------- */
+  // ---------- 4️⃣ IMPORT CONFIGURATION ----------
   const importJobs: {
     file: string;
     type: 'customer' | 'supplier' | 'contact' | 'venue' | 'comment';
@@ -98,12 +103,12 @@ test('API only: login and run sequential imports', async () => {
     { file: 'Sample_Comment.xlsx', type: 'comment' },
   ];
 
-  /* ---------- 5️⃣ RUN IMPORTS SEQUENTIALLY ---------- */
+  // ---------- 5️⃣ RUN IMPORTS SEQUENTIALLY ----------
   for (const job of importJobs) {
     console.log(`\n🚀 Running ${job.type.toUpperCase()} import...`);
 
-    // ✅ Use relative path from test file (__dirname)
-    const filePath = path.join(__dirname, 'test-data', job.file);
+    // Use relative path from test file
+    const filePath = join(__dirname, 'test-data', job.file);
 
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath}`);
