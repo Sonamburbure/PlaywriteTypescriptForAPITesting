@@ -16,7 +16,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /* ---------------- AUTH API ---------------- */
-
 class AuthApi {
   private apiContext?: APIRequestContext;
 
@@ -54,7 +53,6 @@ class AuthApi {
 }
 
 /* ---------------- TEST ---------------- */
-
 test('API only: login and run sequential imports', async () => {
   const authApi = new AuthApi();
 
@@ -107,8 +105,8 @@ test('API only: login and run sequential imports', async () => {
   for (const job of importJobs) {
     console.log(`\n🚀 Running ${job.type.toUpperCase()} import...`);
 
-    // Use relative path from test file
-    const filePath = join(__dirname, 'test-data', job.file);
+    // ✅ Correct path relative to project root
+    const filePath = join(__dirname, '..', 'test-data', job.file);
 
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath}`);
@@ -127,7 +125,6 @@ test('API only: login and run sequential imports', async () => {
     );
 
     console.log(`${job.type} Import Status:`, response.status());
-
     expect(response.ok()).toBeTruthy();
 
     const body = await response.json();
