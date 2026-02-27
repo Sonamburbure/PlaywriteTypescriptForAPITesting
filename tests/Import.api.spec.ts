@@ -54,7 +54,6 @@ test('API only: login and run sequential imports', async () => {
   const authApi = new AuthApi();
 
   /* ---------- 1️⃣ FETCH TENANT ---------- */
-
   const tenants = await authApi.fetchTenantOptions();
 
   const tenant = tenants.find(
@@ -67,7 +66,6 @@ test('API only: login and run sequential imports', async () => {
   }
 
   /* ---------- 2️⃣ LOGIN ---------- */
-
   const loginResponse = await authApi.login(
     EMAIL,
     PASSWORD,
@@ -86,11 +84,9 @@ test('API only: login and run sequential imports', async () => {
   expect(tenantPath).toBeTruthy();
 
   /* ---------- 3️⃣ CREATE API CONTEXT ---------- */
-
   const apiContext = await request.newContext();
 
   /* ---------- 4️⃣ IMPORT CONFIGURATION ---------- */
-
   const importJobs: {
     file: string;
     type: 'customer' | 'supplier' | 'contact' | 'venue' | 'comment';
@@ -98,16 +94,16 @@ test('API only: login and run sequential imports', async () => {
     { file: 'Sample_Accounts (1).xlsx', type: 'customer' },
     { file: 'Sample_Supplier.xlsx', type: 'supplier' },
     { file: 'Sample_Contact.xlsx', type: 'contact' },
-  
     { file: 'Sample_Venue.xlsx', type: 'venue' },
-    { file: 'Sample_Comment.xlsx', type: 'comment' },];
+    { file: 'Sample_Comment.xlsx', type: 'comment' },
+  ];
 
   /* ---------- 5️⃣ RUN IMPORTS SEQUENTIALLY ---------- */
-
   for (const job of importJobs) {
     console.log(`\n🚀 Running ${job.type.toUpperCase()} import...`);
 
-    const filePath = path.resolve('test-data', job.file);
+    // ✅ Use relative path from test file (__dirname)
+    const filePath = path.join(__dirname, 'test-data', job.file);
 
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath}`);
