@@ -92,14 +92,18 @@ test('API only: login and run sequential imports', async () => {
   // ---------- 4️⃣ IMPORT CONFIGURATION ----------
   const importJobs: {
     file: string;
-    type: 'customer' | 'supplier' | 'contact' | 'venue' | 'comment';
+    type: 'customer' | 'supplier' | 'contact' | 'venue' | 'comment' | 'opportunity' | 'salestarget' | 'event';
   }[] = [
     { file: 'Sample_Accounts (1).xlsx', type: 'customer' },
     { file: 'Sample_Supplier.xlsx', type: 'supplier' },
     { file: 'Sample_Contact.xlsx', type: 'contact' },
     { file: 'Sample_Venue.xlsx', type: 'venue' },
     { file: 'Sample_Comment.xlsx', type: 'comment' },
-  ];
+    { file: 'Sample_Opportunity.xlsx', type: 'opportunity' },
+    { file: 'Sample_SalesTarget.xlsx', type: 'salestarget'},
+    { file: 'Sample_Event.xlsx', type: 'event'}
+  
+  ];{
 
   // ---------- 5️⃣ RUN IMPORTS SEQUENTIALLY ----------
   for (const job of importJobs) {
@@ -132,4 +136,4 @@ test('API only: login and run sequential imports', async () => {
   }
 
   console.log('\n✅ All imports completed successfully');
-});
+}});

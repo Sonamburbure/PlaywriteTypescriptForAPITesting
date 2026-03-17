@@ -1,28 +1,37 @@
-import { Page } from '@playwright/test';
+import { Page, Locator } from '@playwright/test';
 
 export class LoginPage {
-  private page: Page;
+
+  readonly page: Page;
+  readonly emailField: Locator;
+  readonly passwordField: Locator;
+  readonly loginButton: Locator;
+  readonly menu: Locator;
 
   constructor(page: Page) {
+
     this.page = page;
-  }
 
-  // Locators
-  private emailInput = '#email';
-  private passwordInput = '#password';
-  private loginButton = 'button[type="submit"]';
+    this.emailField = page.getByPlaceholder('Email');
+    this.passwordField = page.locator('input[name="password"]');
+    this.loginButton = page.getByRole('button', { name: 'Login' });
+    this.menu = page.locator("i[role='button'] svg");
 
-  async navigate(url: string) {
-    await this.page.goto(url);
   }
 
   async login(email: string, password: string) {
-    await this.page.fill(this.emailInput, email);
-    await this.page.fill(this.passwordInput, password);
-    await this.page.click(this.loginButton);
+
+    await this.emailField.fill(email);
+    await this.passwordField.fill(password);
+    await this.loginButton.click();
+
   }
 
-  async waitForHomePage() {
-    await this.page.waitForURL('**/home');
+  async openMenu() {
+
+    await this.menu.waitFor({ state: 'visible' });
+    await this.menu.click();
+
   }
+
 }

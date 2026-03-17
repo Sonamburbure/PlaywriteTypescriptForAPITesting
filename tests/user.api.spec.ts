@@ -20,18 +20,21 @@ class AuthApi {
     }
   }
 
-  async fetchTenantOptions() {
-    await this.init();
+ async fetchTenantOptions() {
+  await this.init();
 
-    const response = await this.apiContext!.get(`${BASE_API_URL}/api/tenant-options`, {
-      headers: { 'Content-Type': 'application/json' },
-    });
+  const response = await this.apiContext!.get(`${BASE_API_URL}/api/tenant-options`, {
+    headers: { 'Content-Type': 'application/json' },
+  });
 
-    expect(response.ok()).toBeTruthy();
-    const body = await response.json();
-    return body.data || [];
-  }
+  console.log("Tenant API Status:", response.status());
+  console.log("Tenant API Response:", await response.text());
 
+  expect(response.ok()).toBeTruthy();
+
+  const body = await response.json();
+  return body.data || [];
+}
   async login(email: string, password: string, tenantName: string) {
     await this.init();
 

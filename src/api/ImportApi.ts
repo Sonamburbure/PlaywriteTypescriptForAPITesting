@@ -11,7 +11,7 @@ export class ImportApi {
     logonAs: string,
     token: string,
     fileName: string,
-    importType: 'customer' | 'supplier' | 'contact' | 'venue' | 'comment'
+    importType: 'customer' | 'supplier' | 'contact' | 'venue' | 'comment' | 'opportunity' | 'salestarget'
   ) {
     const filePath = path.resolve('test-data', fileName);
 

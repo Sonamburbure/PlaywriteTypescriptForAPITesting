@@ -1,9 +1,7 @@
-import { APIRequestContext } from '@playwright/test';
+import { APIRequestContext, expect } from '@playwright/test';
 
 export class AuthApi {
-  fetchTenantOptions() {
-    throw new Error('Method not implemented.');
-  }
+
   private apiContext: APIRequestContext;
 
   constructor(apiContext: APIRequestContext) {
@@ -12,7 +10,7 @@ export class AuthApi {
 
   async login(email: string, password: string) {
     const response = await this.apiContext.post(
-      'https://prod-api.automateevents.com/api/login',
+      `${process.env.BASE_API_URL}/api/login`,
       {
         data: { email, password },
         headers: { 'Content-Type': 'application/json' },
@@ -26,5 +24,23 @@ export class AuthApi {
     }
 
     return response;
+  }
+
+  async fetchTenantOptions(token: string) {
+
+    const response = await this.apiContext.get(
+      `${process.env.BASE_API_URL}/api/tenant/options`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    expect(response.ok()).toBeTruthy();
+
+    const body = await response.json();
+    return body.data || [];
   }
 }
