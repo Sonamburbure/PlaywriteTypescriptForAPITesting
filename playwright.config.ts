@@ -13,19 +13,15 @@ console.log('EMAIL:', process.env.EMAIL);
 const config: PlaywrightTestConfig = {
 
   testDir: './tests',
-
-  timeout: 60000,
-
+  timeout: 120000, // Increased timeout for Jenkins slow load
   fullyParallel: false,
-
   retries: process.env.TEST_TYPE === 'ui' ? 0 : 1,
-
   reporter: [
     ['list'],
     ['html', { outputFolder: 'playwright-report', open: 'on-failure' }]
   ],
 
-  // ✅ ADD: ensures raw artifacts are stored (VERY IMPORTANT for Jenkins)
+  // ✅ Ensure artifacts are stored
   outputDir: 'test-results',
 
   // Login once before all tests
@@ -52,27 +48,40 @@ const config: PlaywrightTestConfig = {
 
         headless: process.env.HEADLESS !== 'false',
 
-        viewport: { width: 1280, height: 720 },
+        // ✅ Increase viewport for headless Jenkins
+        viewport: { width: 1920, height: 1080 },
 
         ignoreHTTPSErrors: true,
-
         screenshot: 'only-on-failure',
-
         trace: 'retain-on-failure',
-
         video: 'retain-on-failure',
 
-        // ✅ ADD: keep artifacts even in Jenkins/headless
+        // ✅ Headless / Jenkins friendly launch args
         launchOptions: {
-          args: ['--no-sandbox', '--disable-dev-shm-usage']
-        }
+          args: [
+            '--no-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-extensions',
+            '--disable-notifications',
+            '--disable-background-networking',
+            '--disable-background-timer-throttling',
+            '--disable-renderer-backgrounding',
+            '--disable-sync',
+            '--start-maximized',
+            '--window-size=1920,1080'
+          ]
+        },
+
+        // ✅ Force stable interaction in headless
+        actionTimeout: 60000,
+        navigationTimeout: 60000
       }
     }
   ],
 
   // Prevent multiple browsers for UI
   workers: process.env.TEST_TYPE === 'ui' ? 1 : undefined,
-
 };
 
 export default config;

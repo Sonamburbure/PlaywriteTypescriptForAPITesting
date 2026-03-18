@@ -1,44 +1,40 @@
-import { Page, expect, TestInfo } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 import fs from 'fs';
 
 export class ExportPage {
   readonly page: Page;
-  readonly exportButton: any;
+  readonly Export: any;
 
   constructor(page: Page) {
     this.page = page;
-    this.exportButton = page.locator("(//button[normalize-space()='Export'])[1]");
+    this.Export = page.locator("(//button[normalize-space()='Export'])[1]");
   }
 
-  async exportModuleByUrl(testInfo: TestInfo, moduleUrl: string, moduleExportLinkText: string) {
+  async exportModuleByUrl(testInfo: any, moduleUrl: string, moduleExportLinkText: string) {
     try {
       console.log(`🚀 Navigating to: ${moduleUrl}`);
 
-      // 1️⃣ Navigate with network idle wait
+      // 1️⃣ Navigate and wait
       await this.page.goto(moduleUrl, { waitUntil: 'domcontentloaded' });
       await this.page.waitForLoadState('networkidle');
 
       console.log('🌐 Current URL:', this.page.url());
 
-      // Extra wait to mimic Selenium Thread.sleep
+      // 🔥 Extra wait for animations/rendering (headless friendly)
       await this.page.waitForTimeout(3000);
 
       // 2️⃣ Select Actions button
       const selectActionButton = this.page.locator("(//button[normalize-space()='Select Actions'])[1]");
 
-      // Wait until attached
-      await selectActionButton.waitFor({ state: 'attached', timeout: 120000 });
-
-      // Scroll into view
+      // ✅ Wait for visible + attached
+      await selectActionButton.waitFor({ state: 'visible', timeout: 120000 });
       await selectActionButton.scrollIntoViewIfNeeded();
-
-      // Ensure visible
       await expect(selectActionButton).toBeVisible({ timeout: 60000 });
 
-      // Click with JS fallback
+      // ✅ Click with fallback
       try {
-        await selectActionButton.click({ timeout: 120000 });
-      } catch (e) {
+        await selectActionButton.click({ timeout: 60000 });
+      } catch {
         console.log('⚠️ Normal click failed, using JS click for Select Actions');
         await this.page.evaluate(() => {
           const btn = document.evaluate(
@@ -52,20 +48,20 @@ export class ExportPage {
         });
       }
 
-      // Wait for dropdown
+      // Small wait for dropdown to render
       await this.page.waitForTimeout(1000);
 
-      // 3️⃣ Export option
-      const exportLocator = this.page.locator(`(//a[normalize-space()='${moduleExportLinkText}'])[1]`);
+      // 3️⃣ Export link
+      const exportModuleLocator = this.page.locator(`(//a[normalize-space()='${moduleExportLinkText}'])[1]`);
+      await exportModuleLocator.waitFor({ state: 'visible', timeout: 60000 });
+      await exportModuleLocator.scrollIntoViewIfNeeded();
+      await expect(exportModuleLocator).toBeVisible({ timeout: 60000 });
 
-      await exportLocator.waitFor({ state: 'attached', timeout: 60000 });
-      await exportLocator.scrollIntoViewIfNeeded();
-      await expect(exportLocator).toBeVisible({ timeout: 60000 });
-
+      // ✅ Click export link with JS fallback
       try {
-        await exportLocator.click({ timeout: 60000 });
-      } catch (e) {
-        console.log('⚠️ Normal click failed, using JS click for Export');
+        await exportModuleLocator.click({ timeout: 60000 });
+      } catch {
+        console.log('⚠️ Normal click failed, using JS click for Export option');
         await this.page.evaluate((text) => {
           const links = Array.from(document.querySelectorAll('a'));
           const match = links.find(el => el.textContent?.trim() === text);
@@ -73,51 +69,54 @@ export class ExportPage {
         }, moduleExportLinkText);
       }
 
-      // 4️⃣ Handle download
+      // 4️⃣ Download
       const [download] = await Promise.all([
         this.page.waitForEvent('download', { timeout: 120000 }),
-        this.exportButton.click({ timeout: 60000 })
+        this.Export.click()
       ]);
 
       const filePath = await download.path();
       const fileName = download.suggestedFilename();
-      console.log(`📥 Downloaded file for ${moduleExportLinkText}: ${fileName}`);
+      console.log(`📥 Downloaded file for ${moduleExportLinkText}:`, fileName);
 
-      // Read content to validate
       const content = fs.readFileSync(filePath!, 'utf-8');
 
-      // 5️⃣ Attach screenshot
+      // Optional: open downloaded file in browser for screenshot
+      await this.page.goto(`file://${filePath}`);
+
       const screenshot = await this.page.screenshot({ fullPage: true });
       await testInfo.attach(`${moduleExportLinkText} Export Screenshot`, {
         body: screenshot,
         contentType: 'image/png'
       });
 
-      // 6️⃣ Attach downloaded file
       await testInfo.attach(`${moduleExportLinkText} Downloaded File`, {
         path: filePath!
       });
 
-      // Validate file type
+      // ✅ Validate file type
       if (!fileName.match(/\.xlsx|\.csv/)) {
-        console.warn(`⚠️ Export warning: File is not Excel/CSV`);
+        console.warn(`⚠️ Export warning for ${moduleExportLinkText}: File is not Excel/CSV`);
       } else if (content.includes('Automate Events')) {
-        console.warn(`⚠️ Export warning: HTML content instead of file`);
+        console.warn(`⚠️ Export warning for ${moduleExportLinkText}: HTML instead of file`);
       } else {
         console.log(`✅ Export of ${moduleExportLinkText} successful`);
       }
 
     } catch (error) {
       console.error(`❌ Export failed for ${moduleExportLinkText}:`, error);
-
       console.log('🌐 Failed URL:', this.page.url());
 
-      // Attach full-page screenshot on failure
-      const screenshot = await this.page.screenshot({ fullPage: true });
-      await testInfo.attach(`❌ Failure Screenshot - ${moduleExportLinkText}`, {
-        body: screenshot,
-        contentType: 'image/png'
-      });
+      // Screenshot on failure
+      try {
+        const screenshot = await this.page.screenshot({ fullPage: true });
+        await testInfo.attach(`❌ Failure Screenshot - ${moduleExportLinkText}`, {
+          body: screenshot,
+          contentType: 'image/png'
+        });
+      } catch (screenshotError) {
+        console.error('⚠️ Failed to capture screenshot:', screenshotError);
+      }
 
       throw error;
     }
