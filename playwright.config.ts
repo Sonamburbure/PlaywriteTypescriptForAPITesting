@@ -25,6 +25,9 @@ const config: PlaywrightTestConfig = {
     ['html', { outputFolder: 'playwright-report', open: 'on-failure' }]
   ],
 
+  // ✅ ADD: ensures raw artifacts are stored (VERY IMPORTANT for Jenkins)
+  outputDir: 'test-results',
+
   // Login once before all tests
   globalSetup: './src/global-setup.ts',
 
@@ -57,7 +60,12 @@ const config: PlaywrightTestConfig = {
 
         trace: 'retain-on-failure',
 
-        video: 'retain-on-failure'
+        video: 'retain-on-failure',
+
+        // ✅ ADD: keep artifacts even in Jenkins/headless
+        launchOptions: {
+          args: ['--no-sandbox', '--disable-dev-shm-usage']
+        }
       }
     }
   ],

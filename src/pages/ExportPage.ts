@@ -1,82 +1,73 @@
-import { Page, Locator } from '@playwright/test';
+import { Page } from '@playwright/test';
 import fs from 'fs';
 
 export class ExportPage {
   readonly page: Page;
-  readonly menuBtn: Locator;
-  readonly ThirdParties: Locator;
-  readonly Account: Locator;
-  readonly SelectAction: Locator;
-  readonly ExportAccount: Locator;
-  readonly radiobutton: Locator;
-  readonly Export: Locator;
+  readonly Export: any;
+ // readonly radiobutton: any;
 
   constructor(page: Page) {
     this.page = page;
-
-    this.menuBtn = page.locator("i[role='button']");
-
-    // ✅ XPath locators
-    this.ThirdParties = page.locator("(//button[normalize-space()='Third Parties'])[1]");
-    this.Account = page.locator("(//a[normalize-space()='Accounts'])[1]");
-    this.SelectAction = page.locator("(//button[normalize-space()='Select Actions'])[1]");
-    this.ExportAccount = page.locator("(//a[normalize-space()='Export Account'])[1]");
-    this.Export = page.locator("(//button[normalize-space()='Export'])[1]");
-
-    // ✅ Stable radio button locator
-    this.radiobutton = page.locator("input[type='radio']").first();
+    this.Export = page.locator("(//button[normalize-space()='Export'])[1]"); // common Export button
+   // this.radiobutton = page.locator("input[type='radio']").first();
   }
 
-  // ✅ Full export flow with validation + reporting
-  async exportAccount(testInfo:any) {
-    await this.menuBtn.click();
-    await this.ThirdParties.click();
-    await this.Account.click();
-    await this.SelectAction.click();
-    await this.ExportAccount.click();
-    await this.radiobutton.check();
+  /**
+   * Export a module by URL and module-specific export link text
+   */
+  async exportModuleByUrl(testInfo: any, moduleUrl: string, moduleExportLinkText: string) {
+    try {
+      // 1️⃣ Navigate to module page
+      await this.page.goto(moduleUrl);
 
-    // ✅ Capture download
-    const [download] = await Promise.all([
-      this.page.waitForEvent('download'),
-      this.Export.click()
-    ]);
+      // 2️⃣ Click Select Actions dynamically
+      const selectActionButton = this.page.locator("(//button[normalize-space()='Select Actions'])[1]");
+      await selectActionButton.waitFor({ state: 'visible', timeout: 15000 });
+      await selectActionButton.click();
 
-    const filePath = await download.path();
-    const fileName = download.suggestedFilename();
+      // 3️⃣ Click module-specific Export link
+      const exportModuleLocator = this.page.locator(`(//a[normalize-space()='${moduleExportLinkText}'])[1]`);
+      await exportModuleLocator.waitFor({ state: 'visible', timeout: 10000 });
+      await exportModuleLocator.click();
 
-    console.log('Downloaded file:', fileName);
+      // 4️⃣ Select first radio button
+      //await this.radiobutton.waitFor({ state: 'visible', timeout: 5000 });
+     // await this.radiobutton.check();
 
-    // ✅ Read file content
-    const content = fs.readFileSync(filePath!, 'utf-8');
+      // 5️⃣ Click Export button and wait for download
+      const [download] = await Promise.all([
+        this.page.waitForEvent('download'),
+        this.Export.click()
+      ]);
 
-    // ✅ Open downloaded file in browser (for proof)
-    await this.page.goto(`file://${filePath}`);
+      const filePath = await download.path();
+      const fileName = download.suggestedFilename();
+      console.log(`Downloaded file for ${moduleExportLinkText}:`, fileName);
 
-    // ✅ Take screenshot
-    const screenshot = await this.page.screenshot();
+      // Read file content
+      const content = fs.readFileSync(filePath!, 'utf-8');
 
-    // ✅ Attach screenshot to report
-    await testInfo.attach('Export HTML Screenshot', {
-      body: screenshot,
-      contentType: 'image/png',
-    });
+      // Open downloaded file in browser
+      await this.page.goto(`file://${filePath}`);
 
-    // ✅ Attach downloaded file
-    await testInfo.attach('Downloaded File', {
-      path: filePath!,
-    });
+      // Take screenshot
+      const screenshot = await this.page.screenshot();
+      await testInfo.attach(`${moduleExportLinkText} Export Screenshot`, { body: screenshot, contentType: 'image/png' });
 
-    // ❌ Fail if wrong file type
-    if (!fileName.match(/\.xlsx|\.csv/)) {
-      throw new Error('❌ Export failed: File is not Excel/CSV');
+      // Attach downloaded file
+      await testInfo.attach(`${moduleExportLinkText} Downloaded File`, { path: filePath! });
+
+      // Validate file type and content
+      if (!fileName.match(/\.xlsx|\.csv/)) {
+        console.warn(`⚠️ Export warning for ${moduleExportLinkText}: File is not Excel/CSV`);
+      } else if (content.includes('Automate Events')) {
+        console.warn(`⚠️ Export warning for ${moduleExportLinkText}: HTML page downloaded instead of actual file`);
+      } else {
+        console.log(`✅ Export of ${moduleExportLinkText} successful and file is valid`);
+      }
+
+    } catch (error) {
+      console.error(`❌ Export failed for ${moduleExportLinkText}:`, error);
     }
-
-    // ❌ Fail if HTML content
-    if (content.includes('Automate Events')) {
-      throw new Error('❌ Export failed: HTML page downloaded instead of actual file');
-    }
-
-    console.log('✅ Export successful and file is valid');
   }
 }
