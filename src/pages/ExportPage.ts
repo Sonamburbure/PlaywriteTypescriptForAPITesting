@@ -1,75 +1,75 @@
-import { Page, expect } from '@playwright/test';
+import { Page, expect, TestInfo } from '@playwright/test';
 import fs from 'fs';
 
 export class ExportPage {
   readonly page: Page;
-  readonly Export: any;
+  readonly exportButton: any;
 
   constructor(page: Page) {
     this.page = page;
-    this.Export = page.locator("(//button[normalize-space()='Export'])[1]");
+    this.exportButton = page.locator("(//button[normalize-space()='Export'])[1]");
   }
 
-  async exportModuleByUrl(testInfo: any, moduleUrl: string, moduleExportLinkText: string) {
+  async exportModuleByUrl(testInfo: TestInfo, moduleUrl: string, moduleExportLinkText: string) {
     try {
       console.log(`🚀 Navigating to: ${moduleUrl}`);
 
       // 1️⃣ Navigate
       await this.page.goto(moduleUrl, { waitUntil: 'domcontentloaded' });
       await this.page.waitForLoadState('networkidle');
-
       console.log('🌐 Current URL:', this.page.url());
 
-      // 🔥 Extra wait to stabilize page (headless)
+      // 🔥 Extra wait for slow Jenkins environments
       await this.page.waitForTimeout(3000);
 
-      // 2️⃣ Select Actions button (robust locator using ID & classes)
-      const selectActionButton = this.page.locator('button#dropdown-basic3.btn-more.dropdown-toggle.btn.btn-primary');
-
-      // Wait for button to be visible
-      await selectActionButton.waitFor({ state: 'visible', timeout: 120000 });
-
-      // Scroll into view
-      await selectActionButton.scrollIntoViewIfNeeded();
-
-      // Ensure visibility
-      await expect(selectActionButton).toBeVisible({ timeout: 30000 });
-
-      // Click with JS fallback
-      try {
-        await selectActionButton.click({ timeout: 60000 });
-      } catch (e) {
-        console.log('⚠️ Normal click failed, using JS click for Select Actions');
-        await this.page.evaluate(() => {
-          const btn = document.querySelector('button#dropdown-basic3.btn-more.dropdown-toggle.btn.btn-primary') as HTMLElement;
-          if (btn) btn.click();
+      // 2️⃣ Click "Select Actions" using robust JS click
+      await this.page.evaluate(async () => {
+        return new Promise<void>((resolve, reject) => {
+          const startTime = Date.now();
+          const timeout = 20000; // 20s
+          const interval = setInterval(() => {
+            const btn = document.querySelector('button#dropdown-basic3') as HTMLElement;
+            if (btn) {
+              btn.scrollIntoView({ block: 'center', inline: 'center' });
+              btn.click();
+              clearInterval(interval);
+              resolve();
+            } else if (Date.now() - startTime > timeout) {
+              clearInterval(interval);
+              reject(new Error('Select Actions button not found after 20s'));
+            }
+          }, 100);
         });
-      }
+      });
 
-      // Small wait for dropdown
-      await this.page.waitForTimeout(1000);
+      // Small wait for dropdown to render
+      await this.page.waitForTimeout(500);
 
-      // 3️⃣ Export link
-      const exportModuleLocator = this.page.locator(`(//a[normalize-space()='${moduleExportLinkText}'])[1]`);
+      // 3️⃣ Click "Export" link using JS click
+      await this.page.evaluate((linkText) => {
+        return new Promise<void>((resolve, reject) => {
+          const startTime = Date.now();
+          const timeout = 20000;
+          const interval = setInterval(() => {
+            const links = Array.from(document.querySelectorAll('a'));
+            const target = links.find(el => el.textContent?.trim() === linkText) as HTMLElement;
+            if (target) {
+              target.scrollIntoView({ block: 'center', inline: 'center' });
+              target.click();
+              clearInterval(interval);
+              resolve();
+            } else if (Date.now() - startTime > timeout) {
+              clearInterval(interval);
+              reject(new Error(`Export link "${linkText}" not found after 20s`));
+            }
+          }, 100);
+        });
+      }, moduleExportLinkText);
 
-      await exportModuleLocator.waitFor({ state: 'attached', timeout: 30000 });
-      await expect(exportModuleLocator).toBeVisible({ timeout: 30000 });
-
-      try {
-        await exportModuleLocator.click({ timeout: 60000 });
-      } catch (e) {
-        console.log('⚠️ Normal click failed, using JS click for Export option');
-        await this.page.evaluate((text) => {
-          const links = Array.from(document.querySelectorAll('a'));
-          const match = links.find(el => el.textContent?.trim() === text);
-          if (match) (match as HTMLElement).click();
-        }, moduleExportLinkText);
-      }
-
-      // 4️⃣ Download
+      // 4️⃣ Download handling
       const [download] = await Promise.all([
         this.page.waitForEvent('download', { timeout: 60000 }),
-        this.Export.click()
+        this.exportButton.click()
       ]);
 
       const filePath = await download.path();
@@ -78,8 +78,8 @@ export class ExportPage {
 
       const content = fs.readFileSync(filePath!, 'utf-8');
 
+      // Attach screenshot of downloaded page
       await this.page.goto(`file://${filePath}`);
-
       const screenshot = await this.page.screenshot();
       await testInfo.attach(`${moduleExportLinkText} Export Screenshot`, {
         body: screenshot,
@@ -101,18 +101,15 @@ export class ExportPage {
     } catch (error) {
       console.error(`❌ Export failed for ${moduleExportLinkText}:`, error);
 
-      // Debug URL
-      console.log('🌐 Failed URL:', this.page.url());
-
-      // Screenshot fallback
+      // Safe screenshot in case page/context is closed
       try {
         const screenshot = await this.page.screenshot({ fullPage: true });
         await testInfo.attach(`❌ Failure Screenshot - ${moduleExportLinkText}`, {
           body: screenshot,
           contentType: 'image/png'
         });
-      } catch {
-        console.warn('⚠️ Could not capture screenshot, page might be closed');
+      } catch (e) {
+        console.warn('⚠️ Failed to capture screenshot:', e);
       }
 
       throw error;
