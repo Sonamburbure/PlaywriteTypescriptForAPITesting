@@ -21,18 +21,21 @@ export class ExportPage {
 
       console.log('🌐 Current URL:', this.page.url());
 
-      // 🔥 Extra wait for slow Jenkins headless
+      // 🔥 Extra wait for headless Jenkins
       await this.page.waitForTimeout(3000);
 
-      // 2️⃣ Select Actions button
-      const selectActionButton = this.page.locator("(//button[normalize-space()='Select Actions'])[1]");
+      // 2️⃣ Wait for main container (robust selector for headless)
+      const mainContainer = this.page.locator("div.col-12:visible");
+      await mainContainer.first().waitFor({ state: "attached", timeout: 120000 });
+      await expect(mainContainer.first()).toBeVisible({ timeout: 60000 });
 
-      // Wait for element in DOM + visible + scroll into view
-      await selectActionButton.waitFor({ state: 'attached', timeout: 120000 });
+      // 3️⃣ Select Actions button
+      const selectActionButton = this.page.locator("(//button[normalize-space()='Select Actions'])[1]");
+      await selectActionButton.waitFor({ state: "attached", timeout: 120000 });
       await selectActionButton.scrollIntoViewIfNeeded();
       await expect(selectActionButton).toBeVisible({ timeout: 60000 });
 
-      // Click with fallback to JS
+      // Click with fallback
       try {
         await selectActionButton.click({ timeout: 120000 });
       } catch (e) {
@@ -49,12 +52,13 @@ export class ExportPage {
         });
       }
 
-      // Wait a little for dropdown
+      // Small wait for dropdown
       await this.page.waitForTimeout(1000);
 
-      // 3️⃣ Export link
+      // 4️⃣ Export link
       const exportModuleLocator = this.page.locator(`(//a[normalize-space()='${moduleExportLinkText}'])[1]`);
-      await exportModuleLocator.waitFor({ state: 'attached', timeout: 120000 });
+      await exportModuleLocator.waitFor({ state: "attached", timeout: 120000 });
+      await exportModuleLocator.scrollIntoViewIfNeeded();
       await expect(exportModuleLocator).toBeVisible({ timeout: 60000 });
 
       try {
@@ -68,7 +72,7 @@ export class ExportPage {
         }, moduleExportLinkText);
       }
 
-      // 4️⃣ Wait for download
+      // 5️⃣ Download
       const [download] = await Promise.all([
         this.page.waitForEvent('download', { timeout: 120000 }),
         this.Export.click()
@@ -80,7 +84,7 @@ export class ExportPage {
 
       const content = fs.readFileSync(filePath!, 'utf-8');
 
-      // Screenshot of the file
+      // Screenshot of the downloaded file
       await this.page.goto(`file://${filePath}`);
       const screenshot = await this.page.screenshot();
       await testInfo.attach(`${moduleExportLinkText} Export Screenshot`, {
@@ -92,6 +96,7 @@ export class ExportPage {
         path: filePath!
       });
 
+      // Validate file type
       if (!fileName.match(/\.xlsx|\.csv/)) {
         console.warn(`⚠️ Export warning for ${moduleExportLinkText}: File is not Excel/CSV`);
       } else if (content.includes('Automate Events')) {
