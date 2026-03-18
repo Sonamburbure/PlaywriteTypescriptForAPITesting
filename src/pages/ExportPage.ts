@@ -14,53 +14,50 @@ export class ExportPage {
     try {
       console.log(`🚀 Navigating to: ${moduleUrl}`);
 
-      // 1️⃣ Navigate and wait
+      // 1️⃣ Navigate
       await this.page.goto(moduleUrl, { waitUntil: 'domcontentloaded' });
       await this.page.waitForLoadState('networkidle');
 
       console.log('🌐 Current URL:', this.page.url());
 
-      // 🔥 Extra wait for animations/rendering (headless friendly)
+      // 🔥 Extra wait to stabilize page (headless)
       await this.page.waitForTimeout(3000);
 
-      // 2️⃣ Select Actions button
-      const selectActionButton = this.page.locator("(//button[normalize-space()='Select Actions'])[1]");
+      // 2️⃣ Select Actions button (robust locator using ID & classes)
+      const selectActionButton = this.page.locator('button#dropdown-basic3.btn-more.dropdown-toggle.btn.btn-primary');
 
-      // ✅ Wait for visible + attached
+      // Wait for button to be visible
       await selectActionButton.waitFor({ state: 'visible', timeout: 120000 });
-      await selectActionButton.scrollIntoViewIfNeeded();
-      await expect(selectActionButton).toBeVisible({ timeout: 60000 });
 
-      // ✅ Click with fallback
+      // Scroll into view
+      await selectActionButton.scrollIntoViewIfNeeded();
+
+      // Ensure visibility
+      await expect(selectActionButton).toBeVisible({ timeout: 30000 });
+
+      // Click with JS fallback
       try {
         await selectActionButton.click({ timeout: 60000 });
-      } catch {
+      } catch (e) {
         console.log('⚠️ Normal click failed, using JS click for Select Actions');
         await this.page.evaluate(() => {
-          const btn = document.evaluate(
-            "(//button[normalize-space()='Select Actions'])[1]",
-            document,
-            null,
-            XPathResult.FIRST_ORDERED_NODE_TYPE,
-            null
-          ).singleNodeValue as HTMLElement;
+          const btn = document.querySelector('button#dropdown-basic3.btn-more.dropdown-toggle.btn.btn-primary') as HTMLElement;
           if (btn) btn.click();
         });
       }
 
-      // Small wait for dropdown to render
+      // Small wait for dropdown
       await this.page.waitForTimeout(1000);
 
       // 3️⃣ Export link
       const exportModuleLocator = this.page.locator(`(//a[normalize-space()='${moduleExportLinkText}'])[1]`);
-      await exportModuleLocator.waitFor({ state: 'visible', timeout: 60000 });
-      await exportModuleLocator.scrollIntoViewIfNeeded();
-      await expect(exportModuleLocator).toBeVisible({ timeout: 60000 });
 
-      // ✅ Click export link with JS fallback
+      await exportModuleLocator.waitFor({ state: 'attached', timeout: 30000 });
+      await expect(exportModuleLocator).toBeVisible({ timeout: 30000 });
+
       try {
         await exportModuleLocator.click({ timeout: 60000 });
-      } catch {
+      } catch (e) {
         console.log('⚠️ Normal click failed, using JS click for Export option');
         await this.page.evaluate((text) => {
           const links = Array.from(document.querySelectorAll('a'));
@@ -71,7 +68,7 @@ export class ExportPage {
 
       // 4️⃣ Download
       const [download] = await Promise.all([
-        this.page.waitForEvent('download', { timeout: 120000 }),
+        this.page.waitForEvent('download', { timeout: 60000 }),
         this.Export.click()
       ]);
 
@@ -81,10 +78,9 @@ export class ExportPage {
 
       const content = fs.readFileSync(filePath!, 'utf-8');
 
-      // Optional: open downloaded file in browser for screenshot
       await this.page.goto(`file://${filePath}`);
 
-      const screenshot = await this.page.screenshot({ fullPage: true });
+      const screenshot = await this.page.screenshot();
       await testInfo.attach(`${moduleExportLinkText} Export Screenshot`, {
         body: screenshot,
         contentType: 'image/png'
@@ -94,7 +90,6 @@ export class ExportPage {
         path: filePath!
       });
 
-      // ✅ Validate file type
       if (!fileName.match(/\.xlsx|\.csv/)) {
         console.warn(`⚠️ Export warning for ${moduleExportLinkText}: File is not Excel/CSV`);
       } else if (content.includes('Automate Events')) {
@@ -105,17 +100,19 @@ export class ExportPage {
 
     } catch (error) {
       console.error(`❌ Export failed for ${moduleExportLinkText}:`, error);
+
+      // Debug URL
       console.log('🌐 Failed URL:', this.page.url());
 
-      // Screenshot on failure
+      // Screenshot fallback
       try {
         const screenshot = await this.page.screenshot({ fullPage: true });
         await testInfo.attach(`❌ Failure Screenshot - ${moduleExportLinkText}`, {
           body: screenshot,
           contentType: 'image/png'
         });
-      } catch (screenshotError) {
-        console.error('⚠️ Failed to capture screenshot:', screenshotError);
+      } catch {
+        console.warn('⚠️ Could not capture screenshot, page might be closed');
       }
 
       throw error;
