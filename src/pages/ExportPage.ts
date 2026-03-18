@@ -20,15 +20,22 @@ export class ExportPage {
 
       console.log('🌐 Current URL:', this.page.url());
 
-      // 2️⃣ Select Actions button
-      const selectActionButton = this.page.getByRole('button', { name: 'Select Actions' });
+      // 🔥 EXTRA WAIT (very important like Selenium)
+      await this.page.waitForTimeout(3000);
 
-      await expect(selectActionButton).toBeVisible({ timeout: 60000 });
+      // 2️⃣ Select Actions button (USE SAME XPATH as Selenium)
+      const selectActionButton = this.page.locator("(//button[normalize-space()='Select Actions'])[1]");
 
-      // 🔥 Scroll (important for Jenkins)
+      // 🔥 Wait for element to be present in DOM
+      await selectActionButton.waitFor({ state: 'attached', timeout: 60000 });
+
+      // 🔥 Scroll like Selenium
       await selectActionButton.scrollIntoViewIfNeeded();
 
-      // 🔥 Try normal click → fallback to JS
+      // 🔥 Ensure visible
+      await expect(selectActionButton).toBeVisible({ timeout: 30000 });
+
+      // 🔥 Click with fallback (same as Selenium)
       try {
         await selectActionButton.click();
       } catch (e) {
@@ -53,9 +60,12 @@ export class ExportPage {
       // 3️⃣ Export link
       const exportModuleLocator = this.page.locator(`(//a[normalize-space()='${moduleExportLinkText}'])[1]`);
 
+      // 🔥 Wait for DOM attach first
+      await exportModuleLocator.waitFor({ state: 'attached', timeout: 30000 });
+
       await expect(exportModuleLocator).toBeVisible({ timeout: 30000 });
 
-      // 🔥 Try normal click → fallback to JS
+      // 🔥 Click with fallback
       try {
         await exportModuleLocator.click();
       } catch (e) {
@@ -104,7 +114,7 @@ export class ExportPage {
 
       console.error(`❌ Export failed for ${moduleExportLinkText}:`, error);
 
-      // 🔥 Debug URL (important)
+      // 🔥 Debug URL
       console.log('🌐 Failed URL:', this.page.url());
 
       const screenshot = await this.page.screenshot({ fullPage: true });
@@ -113,7 +123,7 @@ export class ExportPage {
         contentType: 'image/png'
       });
 
-      throw error; // ✅ ensure Jenkins marks failure
+      throw error;
     }
   }
 }
