@@ -1,73 +1,119 @@
-import { Page } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 import fs from 'fs';
 
 export class ExportPage {
   readonly page: Page;
   readonly Export: any;
- // readonly radiobutton: any;
 
   constructor(page: Page) {
     this.page = page;
-    this.Export = page.locator("(//button[normalize-space()='Export'])[1]"); // common Export button
-   // this.radiobutton = page.locator("input[type='radio']").first();
+    this.Export = page.locator("(//button[normalize-space()='Export'])[1]");
   }
 
-  /**
-   * Export a module by URL and module-specific export link text
-   */
   async exportModuleByUrl(testInfo: any, moduleUrl: string, moduleExportLinkText: string) {
     try {
-      // 1️⃣ Navigate to module page
-      await this.page.goto(moduleUrl);
+      console.log(`🚀 Navigating to: ${moduleUrl}`);
 
-      // 2️⃣ Click Select Actions dynamically
-      const selectActionButton = this.page.locator("(//button[normalize-space()='Select Actions'])[1]");
-      await selectActionButton.waitFor({ state: 'visible', timeout: 15000 });
-      await selectActionButton.click();
+      // 1️⃣ Navigate
+      await this.page.goto(moduleUrl, { waitUntil: 'domcontentloaded' });
+      await this.page.waitForLoadState('networkidle');
 
-      // 3️⃣ Click module-specific Export link
+      console.log('🌐 Current URL:', this.page.url());
+
+      // 2️⃣ Select Actions button
+      const selectActionButton = this.page.getByRole('button', { name: 'Select Actions' });
+
+      await expect(selectActionButton).toBeVisible({ timeout: 60000 });
+
+      // 🔥 Scroll (important for Jenkins)
+      await selectActionButton.scrollIntoViewIfNeeded();
+
+      // 🔥 Try normal click → fallback to JS
+      try {
+        await selectActionButton.click();
+      } catch (e) {
+        console.log('⚠️ Normal click failed, using JS click for Select Actions');
+
+        await this.page.evaluate(() => {
+          const btn = document.evaluate(
+            "(//button[normalize-space()='Select Actions'])[1]",
+            document,
+            null,
+            XPathResult.FIRST_ORDERED_NODE_TYPE,
+            null
+          ).singleNodeValue as HTMLElement;
+
+          if (btn) btn.click();
+        });
+      }
+
+      // Small wait for dropdown
+      await this.page.waitForTimeout(1000);
+
+      // 3️⃣ Export link
       const exportModuleLocator = this.page.locator(`(//a[normalize-space()='${moduleExportLinkText}'])[1]`);
-      await exportModuleLocator.waitFor({ state: 'visible', timeout: 10000 });
-      await exportModuleLocator.click();
 
-      // 4️⃣ Select first radio button
-      //await this.radiobutton.waitFor({ state: 'visible', timeout: 5000 });
-     // await this.radiobutton.check();
+      await expect(exportModuleLocator).toBeVisible({ timeout: 30000 });
 
-      // 5️⃣ Click Export button and wait for download
+      // 🔥 Try normal click → fallback to JS
+      try {
+        await exportModuleLocator.click();
+      } catch (e) {
+        console.log('⚠️ Normal click failed, using JS click for Export option');
+
+        await this.page.evaluate((text) => {
+          const links = Array.from(document.querySelectorAll('a'));
+          const match = links.find(el => el.textContent?.trim() === text);
+          if (match) (match as HTMLElement).click();
+        }, moduleExportLinkText);
+      }
+
+      // 4️⃣ Download
       const [download] = await Promise.all([
-        this.page.waitForEvent('download'),
+        this.page.waitForEvent('download', { timeout: 60000 }),
         this.Export.click()
       ]);
 
       const filePath = await download.path();
       const fileName = download.suggestedFilename();
-      console.log(`Downloaded file for ${moduleExportLinkText}:`, fileName);
+      console.log(`📥 Downloaded file for ${moduleExportLinkText}:`, fileName);
 
-      // Read file content
       const content = fs.readFileSync(filePath!, 'utf-8');
 
-      // Open downloaded file in browser
       await this.page.goto(`file://${filePath}`);
 
-      // Take screenshot
       const screenshot = await this.page.screenshot();
-      await testInfo.attach(`${moduleExportLinkText} Export Screenshot`, { body: screenshot, contentType: 'image/png' });
+      await testInfo.attach(`${moduleExportLinkText} Export Screenshot`, {
+        body: screenshot,
+        contentType: 'image/png'
+      });
 
-      // Attach downloaded file
-      await testInfo.attach(`${moduleExportLinkText} Downloaded File`, { path: filePath! });
+      await testInfo.attach(`${moduleExportLinkText} Downloaded File`, {
+        path: filePath!
+      });
 
-      // Validate file type and content
       if (!fileName.match(/\.xlsx|\.csv/)) {
         console.warn(`⚠️ Export warning for ${moduleExportLinkText}: File is not Excel/CSV`);
       } else if (content.includes('Automate Events')) {
-        console.warn(`⚠️ Export warning for ${moduleExportLinkText}: HTML page downloaded instead of actual file`);
+        console.warn(`⚠️ Export warning for ${moduleExportLinkText}: HTML instead of file`);
       } else {
-        console.log(`✅ Export of ${moduleExportLinkText} successful and file is valid`);
+        console.log(`✅ Export of ${moduleExportLinkText} successful`);
       }
 
     } catch (error) {
+
       console.error(`❌ Export failed for ${moduleExportLinkText}:`, error);
+
+      // 🔥 Debug URL (important)
+      console.log('🌐 Failed URL:', this.page.url());
+
+      const screenshot = await this.page.screenshot({ fullPage: true });
+      await testInfo.attach(`❌ Failure Screenshot - ${moduleExportLinkText}`, {
+        body: screenshot,
+        contentType: 'image/png'
+      });
+
+      throw error; // ✅ ensure Jenkins marks failure
     }
   }
 }
