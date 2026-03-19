@@ -9,47 +9,49 @@ export class ExportPage {
   }
 
   // ✅ Robust click for Jenkins
-  private async clickSelectActions() {
-    const locator = this.page.locator('button#dropdown-basic3');
-    const maxAttempts = 5;
+   private async clickSelectActions() {
+  const btn = this.page.locator('button:has-text("Select Actions")').first();
+  const maxAttempts = 5;
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        console.log(`⚡ Attempt ${attempt} to click Select Actions`);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`⚡ Attempt ${attempt} to click Select Actions`);
 
-        // Wait for element in DOM
-        await locator.waitFor({ state: 'attached', timeout: 60000 });
+      // ✅ Wait for page stable
+      await this.page.waitForLoadState('domcontentloaded');
 
-        // Scroll into view
-        await locator.scrollIntoViewIfNeeded();
+      // ✅ Wait for button visible
+      await btn.waitFor({ state: 'visible', timeout: 60000 });
 
-        // Small wait (important for Jenkins)
-        await this.page.waitForTimeout(1000);
+      // ✅ Scroll into view
+      await btn.scrollIntoViewIfNeeded();
 
-        const handle = await locator.elementHandle();
-        if (!handle) throw new Error('Element handle not found');
+      // ✅ Force click (Playwright way)
+      await btn.click({ force: true });
 
-        // ✅ JS click (best for headless)
-        await this.page.evaluate((el) => {
-          const htmlEl = el as HTMLElement;
-          htmlEl.click();
-        }, handle);
+      // ✅ Verify dropdown opened
+      const dropdownOpened = await this.page.locator('a:has-text("Export")').first().isVisible();
 
-        console.log('✅ Select Actions clicked');
-        return;
-
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        console.warn(`⚠️ Attempt ${attempt} failed: ${msg}`);
-
-        if (attempt === maxAttempts) {
-          throw new Error('❌ Failed to click Select Actions after retries');
-        }
-
-        await this.page.waitForTimeout(2000);
+      if (!dropdownOpened) {
+        throw new Error("Dropdown did not open");
       }
+
+      console.log("✅ Select Actions clicked successfully");
+      return;
+
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.warn(`⚠️ Attempt ${attempt} failed: ${msg}`);
+
+      if (attempt === maxAttempts) {
+        throw new Error("❌ Failed to click Select Actions after retries");
+      }
+
+      // Small retry wait
+      await this.page.waitForTimeout(2000);
     }
   }
+}
 
   async exportModuleByUrl(testInfo: TestInfo, moduleUrl: string, moduleExportLinkText: string) {
     try {
