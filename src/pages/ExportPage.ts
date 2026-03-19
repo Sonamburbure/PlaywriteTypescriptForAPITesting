@@ -1,37 +1,52 @@
-import { Page, expect, TestInfo } from '@playwright/test';
+import { Page, TestInfo } from '@playwright/test';
 import fs from 'fs';
 
 export class ExportPage {
   readonly page: Page;
-  readonly Export: any;
 
   constructor(page: Page) {
     this.page = page;
-    this.Export = page.locator("(//button[normalize-space()='Export'])[1]");
   }
 
-  // ✅ Generic click with retry and JS fallback for Jenkins/headless
-  private async clickWithRetry(locator: string, attempts: number = 5, waitMs: number = 2000) {
-    for (let i = 1; i <= attempts; i++) {
+  // ✅ Robust click for Jenkins
+  private async clickSelectActions() {
+    const locator = this.page.locator('button#dropdown-basic3');
+    const maxAttempts = 5;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const el = this.page.locator(locator);
-        await el.waitFor({ state: 'visible', timeout: 20000 });
+        console.log(`⚡ Attempt ${attempt} to click Select Actions`);
 
-        const handle = await el.elementHandle();
-        if (!handle) throw new Error(`Element not found: ${locator}`);
+        // Wait for element in DOM
+        await locator.waitFor({ state: 'attached', timeout: 60000 });
 
+        // Scroll into view
+        await locator.scrollIntoViewIfNeeded();
+
+        // Small wait (important for Jenkins)
+        await this.page.waitForTimeout(1000);
+
+        const handle = await locator.elementHandle();
+        if (!handle) throw new Error('Element handle not found');
+
+        // ✅ JS click (best for headless)
         await this.page.evaluate((el) => {
-          const htmlEl = el as HTMLElement; // ✅ TypeScript-safe
-          htmlEl.scrollIntoView({ block: 'center', inline: 'center' });
+          const htmlEl = el as HTMLElement;
           htmlEl.click();
         }, handle);
 
-        console.log(`✅ Clicked ${locator} on attempt ${i}`);
+        console.log('✅ Select Actions clicked');
         return;
+
       } catch (error) {
-        console.warn(`⚠️ Attempt ${i} failed for ${locator}: ${error}`);
-        if (i === attempts) throw new Error(`Failed to click ${locator} after ${attempts} attempts`);
-        await this.page.waitForTimeout(waitMs);
+        const msg = error instanceof Error ? error.message : String(error);
+        console.warn(`⚠️ Attempt ${attempt} failed: ${msg}`);
+
+        if (attempt === maxAttempts) {
+          throw new Error('❌ Failed to click Select Actions after retries');
+        }
+
+        await this.page.waitForTimeout(2000);
       }
     }
   }
@@ -40,64 +55,67 @@ export class ExportPage {
     try {
       console.log(`🚀 Navigating to: ${moduleUrl}`);
 
-      // 1️⃣ Navigate
-      await this.page.goto(moduleUrl, { waitUntil: 'domcontentloaded' });
-      await this.page.waitForLoadState('networkidle');
+      // ✅ Better navigation wait
+      await this.page.goto(moduleUrl, { waitUntil: 'networkidle' });
 
       console.log('🌐 Current URL:', this.page.url());
-      await this.page.waitForTimeout(3000);
 
-      // 2️⃣ Click "Select Actions"
-      const selectActionLocator = "button#dropdown-basic3.btn-more.dropdown-toggle.btn.btn-primary";
-      await this.clickWithRetry(selectActionLocator, 5, 2000);
+      // ✅ Extra wait for slow Jenkins UI
+      await this.page.waitForTimeout(5000);
 
-      await this.page.waitForTimeout(1000); // wait for dropdown
+      // ✅ Click Select Actions (robust)
+      await this.clickSelectActions();
 
-      // 3️⃣ Click Export link
-      const exportLinkLocator = `(//a[normalize-space()='${moduleExportLinkText}'])[1]`;
-      await this.clickWithRetry(exportLinkLocator, 5, 2000);
+      // Wait for dropdown to open
+      await this.page.waitForTimeout(2000);
 
-      // 4️⃣ Download
+      // ✅ Click Export option
+      const exportOption = this.page.locator(`//a[normalize-space()='${moduleExportLinkText}']`).first();
+
+      await exportOption.waitFor({ state: 'visible', timeout: 30000 });
+
+      await exportOption.click();
+
+      console.log(`✅ Clicked ${moduleExportLinkText}`);
+
+      // ✅ Download handling
       const [download] = await Promise.all([
         this.page.waitForEvent('download', { timeout: 60000 }),
-        this.Export.click()
+        this.page.locator("(//button[normalize-space()='Export'])[1]").click()
       ]);
 
       const filePath = await download.path();
       const fileName = download.suggestedFilename();
-      console.log(`📥 Downloaded file for ${moduleExportLinkText}:`, fileName);
 
-      const content = fs.readFileSync(filePath!, 'utf-8');
+      console.log(`📥 Downloaded: ${fileName}`);
 
+      // Attach screenshot
       const screenshot = await this.page.screenshot();
-      await testInfo.attach(`${moduleExportLinkText} Export Screenshot`, {
+      await testInfo.attach(`${moduleExportLinkText} Screenshot`, {
         body: screenshot,
         contentType: 'image/png'
       });
 
-      await testInfo.attach(`${moduleExportLinkText} Downloaded File`, {
+      // Attach file
+      await testInfo.attach(`${moduleExportLinkText} File`, {
         path: filePath!
       });
 
-      if (!fileName.match(/\.xlsx|\.csv/)) {
-        console.warn(`⚠️ Export warning for ${moduleExportLinkText}: File is not Excel/CSV`);
-      } else if (content.includes('Automate Events')) {
-        console.warn(`⚠️ Export warning for ${moduleExportLinkText}: HTML instead of file`);
-      } else {
-        console.log(`✅ Export of ${moduleExportLinkText} successful`);
-      }
     } catch (error) {
       console.error(`❌ Export failed for ${moduleExportLinkText}:`, error);
 
       console.log('🌐 Failed URL:', this.page.url());
+
+      // ✅ Safe screenshot (fix unknown error)
       try {
         const screenshot = await this.page.screenshot({ fullPage: true });
-        await testInfo.attach(`❌ Failure Screenshot - ${moduleExportLinkText}`, {
+        await testInfo.attach(`Failure Screenshot - ${moduleExportLinkText}`, {
           body: screenshot,
           contentType: 'image/png'
         });
-      } catch {
-        console.warn('⚠️ Failed to capture screenshot');
+      } catch (screenshotError) {
+        const msg = screenshotError instanceof Error ? screenshotError.message : String(screenshotError);
+        console.warn('⚠️ Screenshot failed:', msg);
       }
 
       throw error;
