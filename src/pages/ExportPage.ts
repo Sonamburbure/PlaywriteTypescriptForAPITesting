@@ -9,49 +9,47 @@ export class ExportPage {
   }
 
   // ✅ Robust click for Jenkins
-   private async clickSelectActions() {
-  const btn = this.page.locator('button:has-text("Select Actions")').first();
-  const maxAttempts = 5;
+private async clickSelectActions() {
+  const btn = this.page.locator('#dropdown-basic3');
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      console.log(`⚡ Attempt ${attempt} to click Select Actions`);
+  try {
+    console.log("⚡ Trying normal force click...");
 
-      // ✅ Wait for page stable
-      await this.page.waitForLoadState('domcontentloaded');
+    // Wait until attached (NOT visible)
+    await btn.waitFor({ state: 'attached', timeout: 60000 });
 
-      // ✅ Wait for button visible
-      await btn.waitFor({ state: 'visible', timeout: 60000 });
+    // Scroll (important for headless)
+    await btn.scrollIntoViewIfNeeded();
 
-      // ✅ Scroll into view
-      await btn.scrollIntoViewIfNeeded();
+    // Force click (Playwright way)
+    await btn.click({ force: true });
 
-      // ✅ Force click (Playwright way)
-      await btn.click({ force: true });
+    console.log("✅ Clicked using force click");
 
-      // ✅ Verify dropdown opened
-      const dropdownOpened = await this.page.locator('a:has-text("Export")').first().isVisible();
+  } catch (error) {
+    console.log("⚠️ Force click failed → trying JS click");
 
-      if (!dropdownOpened) {
-        throw new Error("Dropdown did not open");
+    // 🔥 Hard JS click (bypass everything)
+    await this.page.evaluate(() => {
+      const btn = document.querySelector('#dropdown-basic3') as HTMLElement;
+      if (btn) {
+        btn.click();
+      } else {
+        throw new Error("Select Actions button not found in DOM");
       }
+    });
 
-      console.log("✅ Select Actions clicked successfully");
-      return;
-
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.warn(`⚠️ Attempt ${attempt} failed: ${msg}`);
-
-      if (attempt === maxAttempts) {
-        throw new Error("❌ Failed to click Select Actions after retries");
-      }
-
-      // Small retry wait
-      await this.page.waitForTimeout(2000);
-    }
+    console.log("✅ Clicked using JS");
   }
+
+  // ✅ Confirm dropdown opened (VERY IMPORTANT)
+  await this.page.waitForSelector("//a[contains(text(),'Export')]", {
+    timeout: 30000
+  });
+
+  console.log("✅ Dropdown opened successfully");
 }
+
 
   async exportModuleByUrl(testInfo: TestInfo, moduleUrl: string, moduleExportLinkText: string) {
     try {
