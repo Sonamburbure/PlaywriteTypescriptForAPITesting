@@ -46,95 +46,52 @@ export class ExportPage {
     console.log("✅ Dropdown opened successfully");
   }
 
-  async exportModuleByUrl(
-    testInfo: TestInfo,
-    moduleUrl: string,
-    moduleExportLinkText: string
-  ) {
-    try {
-      console.log(`🚀 Navigating to: ${moduleUrl}`);
+  async exportModuleByUrl(testInfo: TestInfo, moduleUrl: string, moduleExportLinkText: string) {
+  try {
+    console.log(`🚀 Navigating to: ${moduleUrl}`);
 
-      await this.page.goto(moduleUrl);
+    await this.page.goto(moduleUrl);
 
-      console.log('🌐 Current URL:', this.page.url());
+    await this.page.waitForLoadState('domcontentloaded');
 
-      // ✅ 🔥 CRITICAL FIX: Wait for API response (Angular data load)
-      await this.page.waitForResponse(
-        resp => resp.url().includes('/accounts') && resp.status() === 200,
-        { timeout: 60000 }
-      );
+    console.log('🌐 Current URL:', this.page.url());
+    console.log('📄 Page title:', await this.page.title());
 
-      console.log("✅ Accounts API loaded");
+    // ✅ Wait for page to stabilize
+    await this.page.waitForSelector('body', { timeout: 60000 });
 
-      // ✅ Wait for button to appear in DOM
-      await this.page.waitForSelector('#dropdown-basic3', { timeout: 60000 });
+    // ✅ DEBUG: check if button exists at all
+    const btnCount = await this.page.locator('#dropdown-basic3').count();
+    console.log("🔍 Select Actions button count:", btnCount);
 
-      console.log("✅ Select Actions button found");
-
-      // ✅ Click Select Actions
-      await this.clickSelectActions();
-
-      // ✅ Click Export option
-      const exportOption = this.page
-        .locator(`//a[normalize-space()='${moduleExportLinkText}']`)
-        .first();
-
-      await exportOption.waitFor({ state: 'visible', timeout: 30000 });
-
-      await exportOption.click();
-
-      console.log(`✅ Clicked ${moduleExportLinkText}`);
-
-      // ✅ Download handling
-      const [download] = await Promise.all([
-        this.page.waitForEvent('download', { timeout: 60000 }),
-        this.page.locator("(//button[normalize-space()='Export'])[1]").click()
-      ]);
-
-      const filePath = await download.path();
-      const fileName = download.suggestedFilename();
-
-      console.log(`📥 Downloaded: ${fileName}`);
-
-      // Attach screenshot
-      const screenshot = await this.page.screenshot();
-      await testInfo.attach(`${moduleExportLinkText} Screenshot`, {
-        body: screenshot,
-        contentType: 'image/png'
-      });
-
-      // Attach file
-      await testInfo.attach(`${moduleExportLinkText} File`, {
-        path: filePath!
-      });
-
-    } catch (error) {
-      console.error(`❌ Export failed for ${moduleExportLinkText}:`, error);
-
-      console.log('🌐 Failed URL:', this.page.url());
-
-      // Debug: log API responses
-      this.page.on('response', res => {
-        if (res.url().includes('/accounts')) {
-          console.log("API STATUS:", res.status());
-        }
-      });
-
-      // Safe screenshot
-      try {
-        const screenshot = await this.page.screenshot({ fullPage: true });
-        await testInfo.attach(`Failure Screenshot - ${moduleExportLinkText}`, {
-          body: screenshot,
-          contentType: 'image/png'
-        });
-      } catch (screenshotError) {
-        const msg = screenshotError instanceof Error
-          ? screenshotError.message
-          : String(screenshotError);
-        console.warn('⚠️ Screenshot failed:', msg);
-      }
-
-      throw error;
+    if (btnCount === 0) {
+      throw new Error("❌ Button not present → Page not loaded properly (likely login/session issue)");
     }
+
+    // ✅ Click
+    await this.clickSelectActions();
+
+    // Export option
+    const exportOption = this.page.locator(`//a[normalize-space()='${moduleExportLinkText}']`).first();
+
+    await exportOption.waitFor({ state: 'visible', timeout: 30000 });
+    await exportOption.click();
+
+    console.log(`✅ Clicked ${moduleExportLinkText}`);
+
+    const [download] = await Promise.all([
+      this.page.waitForEvent('download', { timeout: 60000 }),
+      this.page.locator("(//button[normalize-space()='Export'])[1]").click()
+    ]);
+
+    console.log(`📥 Downloaded: ${download.suggestedFilename()}`);
+
+  } catch (error) {
+    console.error(`❌ Export failed for ${moduleExportLinkText}:`, error);
+
+    console.log("🌐 Final URL:", this.page.url());
+    console.log("📄 Final title:", await this.page.title());
+
+    throw error;
   }
-}
+}}
