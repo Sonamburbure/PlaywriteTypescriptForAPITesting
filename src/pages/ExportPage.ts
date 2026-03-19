@@ -8,12 +8,9 @@ export class ExportPage {
     this.page = page;
   }
 
-  // ✅ Robust click for Jenkins (FINAL)
+  // ✅ Robust click (final stable version)
   private async clickSelectActions() {
     const btn = this.page.locator('#dropdown-basic3');
-
-    // ✅ Wait for button container (Angular render fix)
-    await this.page.waitForSelector('div.btn_actions.dropdown', { timeout: 60000 });
 
     try {
       console.log("⚡ Trying force click...");
@@ -49,7 +46,11 @@ export class ExportPage {
     console.log("✅ Dropdown opened successfully");
   }
 
-  async exportModuleByUrl(testInfo: TestInfo, moduleUrl: string, moduleExportLinkText: string) {
+  async exportModuleByUrl(
+    testInfo: TestInfo,
+    moduleUrl: string,
+    moduleExportLinkText: string
+  ) {
     try {
       console.log(`🚀 Navigating to: ${moduleUrl}`);
 
@@ -57,17 +58,26 @@ export class ExportPage {
 
       console.log('🌐 Current URL:', this.page.url());
 
-      // ✅ IMPORTANT: Wait for Angular UI (NOT timeout)
-      await this.page.waitForSelector('div.btn_actions.dropdown', { timeout: 60000 });
+      // ✅ 🔥 CRITICAL FIX: Wait for API response (Angular data load)
+      await this.page.waitForResponse(
+        resp => resp.url().includes('/accounts') && resp.status() === 200,
+        { timeout: 60000 }
+      );
 
-      // Optional debug
-      // console.log(await this.page.locator('button').allTextContents());
+      console.log("✅ Accounts API loaded");
+
+      // ✅ Wait for button to appear in DOM
+      await this.page.waitForSelector('#dropdown-basic3', { timeout: 60000 });
+
+      console.log("✅ Select Actions button found");
 
       // ✅ Click Select Actions
       await this.clickSelectActions();
 
       // ✅ Click Export option
-      const exportOption = this.page.locator(`//a[normalize-space()='${moduleExportLinkText}']`).first();
+      const exportOption = this.page
+        .locator(`//a[normalize-space()='${moduleExportLinkText}']`)
+        .first();
 
       await exportOption.waitFor({ state: 'visible', timeout: 30000 });
 
@@ -103,6 +113,14 @@ export class ExportPage {
 
       console.log('🌐 Failed URL:', this.page.url());
 
+      // Debug: log API responses
+      this.page.on('response', res => {
+        if (res.url().includes('/accounts')) {
+          console.log("API STATUS:", res.status());
+        }
+      });
+
+      // Safe screenshot
       try {
         const screenshot = await this.page.screenshot({ fullPage: true });
         await testInfo.attach(`Failure Screenshot - ${moduleExportLinkText}`, {
@@ -110,7 +128,9 @@ export class ExportPage {
           contentType: 'image/png'
         });
       } catch (screenshotError) {
-        const msg = screenshotError instanceof Error ? screenshotError.message : String(screenshotError);
+        const msg = screenshotError instanceof Error
+          ? screenshotError.message
+          : String(screenshotError);
         console.warn('⚠️ Screenshot failed:', msg);
       }
 
