@@ -8,66 +8,63 @@ export class ExportPage {
     this.page = page;
   }
 
-  // ✅ Robust click for Jenkins
-private async clickSelectActions() {
-  const btn = this.page.locator('#dropdown-basic3');
+  // ✅ Robust click for Jenkins (FINAL)
+  private async clickSelectActions() {
+    const btn = this.page.locator('#dropdown-basic3');
 
-  try {
-    console.log("⚡ Trying normal force click...");
+    // ✅ Wait for button container (Angular render fix)
+    await this.page.waitForSelector('div.btn_actions.dropdown', { timeout: 60000 });
 
-    // Wait until attached (NOT visible)
-    await btn.waitFor({ state: 'attached', timeout: 60000 });
+    try {
+      console.log("⚡ Trying force click...");
 
-    // Scroll (important for headless)
-    await btn.scrollIntoViewIfNeeded();
+      await btn.waitFor({ state: 'attached', timeout: 60000 });
 
-    // Force click (Playwright way)
-    await btn.click({ force: true });
+      await btn.scrollIntoViewIfNeeded();
 
-    console.log("✅ Clicked using force click");
+      await btn.click({ force: true });
 
-  } catch (error) {
-    console.log("⚠️ Force click failed → trying JS click");
+      console.log("✅ Clicked using force click");
 
-    // 🔥 Hard JS click (bypass everything)
-    await this.page.evaluate(() => {
-      const btn = document.querySelector('#dropdown-basic3') as HTMLElement;
-      if (btn) {
-        btn.click();
-      } else {
-        throw new Error("Select Actions button not found in DOM");
-      }
+    } catch (error) {
+      console.log("⚠️ Force click failed → trying JS click");
+
+      await this.page.evaluate(() => {
+        const el = document.querySelector('#dropdown-basic3') as HTMLElement;
+        if (el) {
+          el.click();
+        } else {
+          throw new Error("Select Actions button not found in DOM");
+        }
+      });
+
+      console.log("✅ Clicked using JS");
+    }
+
+    // ✅ Confirm dropdown opened
+    await this.page.waitForSelector("//a[contains(text(),'Export')]", {
+      timeout: 30000
     });
 
-    console.log("✅ Clicked using JS");
+    console.log("✅ Dropdown opened successfully");
   }
-
-  // ✅ Confirm dropdown opened (VERY IMPORTANT)
-  await this.page.waitForSelector("//a[contains(text(),'Export')]", {
-    timeout: 30000
-  });
-
-  console.log("✅ Dropdown opened successfully");
-}
-
 
   async exportModuleByUrl(testInfo: TestInfo, moduleUrl: string, moduleExportLinkText: string) {
     try {
       console.log(`🚀 Navigating to: ${moduleUrl}`);
 
-      // ✅ Better navigation wait
-      await this.page.goto(moduleUrl, { waitUntil: 'networkidle' });
+      await this.page.goto(moduleUrl);
 
       console.log('🌐 Current URL:', this.page.url());
 
-      // ✅ Extra wait for slow Jenkins UI
-      await this.page.waitForTimeout(5000);
+      // ✅ IMPORTANT: Wait for Angular UI (NOT timeout)
+      await this.page.waitForSelector('div.btn_actions.dropdown', { timeout: 60000 });
 
-      // ✅ Click Select Actions (robust)
+      // Optional debug
+      // console.log(await this.page.locator('button').allTextContents());
+
+      // ✅ Click Select Actions
       await this.clickSelectActions();
-
-      // Wait for dropdown to open
-      await this.page.waitForTimeout(2000);
 
       // ✅ Click Export option
       const exportOption = this.page.locator(`//a[normalize-space()='${moduleExportLinkText}']`).first();
@@ -106,7 +103,6 @@ private async clickSelectActions() {
 
       console.log('🌐 Failed URL:', this.page.url());
 
-      // ✅ Safe screenshot (fix unknown error)
       try {
         const screenshot = await this.page.screenshot({ fullPage: true });
         await testInfo.attach(`Failure Screenshot - ${moduleExportLinkText}`, {
