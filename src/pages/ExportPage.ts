@@ -1,5 +1,4 @@
 import { Page, TestInfo } from '@playwright/test';
-import fs from 'fs';
 
 export class ExportPage {
   readonly page: Page;
@@ -8,73 +7,98 @@ export class ExportPage {
     this.page = page;
   }
 
-  // ✅ Robust click for Jenkins
-private async clickSelectActions() {
-  const btn = this.page.locator('#dropdown-basic3');
+  // ✅ Stable Select Actions click
+  private async clickSelectActions(expectedText: string) {
+    const btn = this.page.getByRole('button', { name: /select/i });
 
-  try {
-    console.log("⚡ Trying normal force click...");
+    await this.page.waitForLoadState('networkidle');
 
-    // Wait until attached (NOT visible)
-    await btn.waitFor({ state: 'attached', timeout: 60000 });
+    await this.page.screenshot({ path: 'before-click.png', fullPage: true });
 
-    // Scroll (important for headless)
+    await btn.waitFor({ state: 'visible', timeout: 60000 });
+
     await btn.scrollIntoViewIfNeeded();
+    await btn.click();
 
-    // Force click (Playwright way)
-    await btn.click({ force: true });
+    console.log("✅ Clicked Select Actions");
 
-    console.log("✅ Clicked using force click");
+    await this.page.waitForTimeout(2000);
 
-  } catch (error) {
-    console.log("⚠️ Force click failed → trying JS click");
+    await this.page.waitForSelector(
+      `//a[normalize-space()='${expectedText}']`,
+      { state: 'visible', timeout: 60000 }
+    );
 
-    // 🔥 Hard JS click (bypass everything)
-    await this.page.evaluate(() => {
-      const btn = document.querySelector('#dropdown-basic3') as HTMLElement;
-      if (btn) {
-        btn.click();
-      } else {
-        throw new Error("Select Actions button not found in DOM");
-      }
-    });
-
-    console.log("✅ Clicked using JS");
+    console.log("✅ Dropdown opened successfully");
   }
 
-  // ✅ Confirm dropdown opened (VERY IMPORTANT)
-  await this.page.waitForSelector("//a[contains(text(),'Export')]", {
-    timeout: 30000
-  });
-
-  console.log("✅ Dropdown opened successfully");
-}
-
-
-  async exportModuleByUrl(testInfo: TestInfo, moduleUrl: string, moduleExportLinkText: string) {
+  async exportModuleByUrl(
+    testInfo: TestInfo,
+    moduleUrl: string,
+    moduleExportLinkText: string
+  ) {
     try {
       console.log(`🚀 Navigating to: ${moduleUrl}`);
 
-      // ✅ Better navigation wait
-      await this.page.goto(moduleUrl, { waitUntil: 'networkidle' });
+      await this.page.goto(moduleUrl);
+
+      await this.page.waitForLoadState('domcontentloaded');
+      await this.page.waitForLoadState('networkidle');
 
       console.log('🌐 Current URL:', this.page.url());
 
-      // ✅ Extra wait for slow Jenkins UI
-      await this.page.waitForTimeout(5000);
+      // ✅ SAFE TITLE (no crash)
+      try {
+        console.log('📄 Page title:', await this.page.title());
+      } catch {
+        console.log("⚠️ Page title not available");
+      }
 
-      // ✅ Click Select Actions (robust)
-      await this.clickSelectActions();
+      // ✅ LOGIN CHECK
+      if (this.page.url().includes('login')) {
+        throw new Error("❌ Not logged in → redirected to login page");
+      }
 
-      // Wait for dropdown to open
-      await this.page.waitForTimeout(2000);
+      await this.page.waitForSelector('body', { timeout: 60000 });
 
-      // ✅ Click Export option
-      const exportOption = this.page.locator(`//a[normalize-space()='${moduleExportLinkText}']`).first();
+      await this.page.screenshot({
+        path: 'page-loaded.png',
+        fullPage: true
+      });
 
-      await exportOption.waitFor({ state: 'visible', timeout: 30000 });
+      // ✅ Check Select button
+      const btn = this.page.getByRole('button', { name: /select/i });
+      const btnCount = await btn.count();
 
-      await exportOption.click();
+      console.log("🔍 Select Actions button count:", btnCount);
+
+      if (btnCount === 0) {
+        throw new Error("❌ Select Actions button not found");
+      }
+
+      // ✅ Click Select Actions
+      await this.clickSelectActions(moduleExportLinkText);
+
+      // ✅ DEBUG before clicking export
+      await this.page.screenshot({
+        path: 'before-export.png',
+        fullPage: true
+      });
+
+      const exportOption = this.page.locator(
+        `//a[normalize-space()='${moduleExportLinkText}']`
+      );
+
+      const exportCount = await exportOption.count();
+      console.log("🔍 Export option count:", exportCount);
+
+      if (exportCount === 0) {
+        throw new Error(`❌ ${moduleExportLinkText} not found in dropdown`);
+      }
+
+      await exportOption.waitFor({ state: 'visible', timeout: 60000 });
+      await exportOption.scrollIntoViewIfNeeded();
+      await exportOption.click({ force: true });
 
       console.log(`✅ Clicked ${moduleExportLinkText}`);
 
@@ -84,40 +108,36 @@ private async clickSelectActions() {
         this.page.locator("(//button[normalize-space()='Export'])[1]").click()
       ]);
 
-      const filePath = await download.path();
-      const fileName = download.suggestedFilename();
-
-      console.log(`📥 Downloaded: ${fileName}`);
-
-      // Attach screenshot
-      const screenshot = await this.page.screenshot();
-      await testInfo.attach(`${moduleExportLinkText} Screenshot`, {
-        body: screenshot,
-        contentType: 'image/png'
-      });
-
-      // Attach file
-      await testInfo.attach(`${moduleExportLinkText} File`, {
-        path: filePath!
-      });
+      console.log(`📥 Downloaded: ${download.suggestedFilename()}`);
 
     } catch (error) {
       console.error(`❌ Export failed for ${moduleExportLinkText}:`, error);
 
-      console.log('🌐 Failed URL:', this.page.url());
-
-      // ✅ Safe screenshot (fix unknown error)
+      // ✅ SAFE LOGS (no crash if page closed)
       try {
-        const screenshot = await this.page.screenshot({ fullPage: true });
-        await testInfo.attach(`Failure Screenshot - ${moduleExportLinkText}`, {
-          body: screenshot,
-          contentType: 'image/png'
+        console.log("🌐 Final URL:", this.page.url());
+      } catch {
+        console.log("⚠️ Page closed (URL not available)");
+      }
+
+      try {
+        const title = await this.page.title();
+        console.log("📄 Final title:", title);
+      } catch {
+        console.log("⚠️ Page closed (title not available)");
+      }
+
+      // ✅ SAFE SCREENSHOT
+      try {
+        await this.page.screenshot({
+          path: `error-${Date.now()}.png`,
+          fullPage: true
         });
-      } catch (screenshotError) {
-        const msg = screenshotError instanceof Error ? screenshotError.message : String(screenshotError);
-        console.warn('⚠️ Screenshot failed:', msg);
+      } catch {
+        console.log("⚠️ Cannot capture screenshot (page closed)");
       }
 
       throw error;
     }
-  }}
+  }
+}
