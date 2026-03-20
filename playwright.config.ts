@@ -18,7 +18,7 @@ const config: PlaywrightTestConfig = {
   retries: process.env.TEST_TYPE === 'ui' ? 0 : 1,
   reporter: [
     ['list'],
-    ['html', { outputFolder: 'playwright-report', open: 'on-failure' }]
+    ['html', { outputFolder: 'playwright-report', open: 'always' }] // Always generate HTML report
   ],
 
   // ✅ Ensure artifacts are stored
@@ -40,43 +40,40 @@ const config: PlaywrightTestConfig = {
       name: 'ui',
       testMatch: /.*ui.*\.spec\.ts/,
 
-      use: {
-        baseURL: process.env.BASE_UI_URL,
+     use: {
+  baseURL: process.env.BASE_UI_URL,
 
-        // Reuse login session
-        storageState: 'storageState.json',
+  storageState: 'storageState.json',
 
-        headless: process.env.HEADLESS !== 'false',
+  headless: process.env.HEADLESS !== 'false',
 
-        // ✅ Increase viewport for headless Jenkins
-        viewport: { width: 1920, height: 1080 },
+  viewport: null, // ✅ FIXED
 
-        ignoreHTTPSErrors: true,
-        screenshot: 'only-on-failure',
-        trace: 'retain-on-failure',
-        video: 'retain-on-failure',
+  ignoreHTTPSErrors: true,
 
-        // ✅ Headless / Jenkins friendly launch args
-        launchOptions: {
-          args: [
-            '--no-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--disable-extensions',
-            '--disable-notifications',
-            '--disable-background-networking',
-            '--disable-background-timer-throttling',
-            '--disable-renderer-backgrounding',
-            '--disable-sync',
-            '--start-maximized',
-            '--window-size=1920,1080'
-          ]
-        },
+  screenshot: 'on',
+  trace: 'on',
+  video: 'on',
 
-        // ✅ Force stable interaction in headless
-        actionTimeout: 60000,
-        navigationTimeout: 60000
-      }
+  launchOptions: {
+    args: [
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--disable-notifications',
+      '--disable-background-networking',
+      '--disable-background-timer-throttling',
+      '--disable-renderer-backgrounding',
+      '--disable-sync',
+      '--start-maximized',
+      '--window-size=1920,1080'
+    ]
+  },
+
+  actionTimeout: 60000,
+  navigationTimeout: 60000
+}
     }
   ],
 

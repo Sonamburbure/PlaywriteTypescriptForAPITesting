@@ -16,7 +16,7 @@ const response = await page.waitForResponse(
   );
 
   const body = await response.json();
-  const eventId = body?.[0]?.eventid;
+ const eventId = body?.[0]?.eventid;
 
   console.log('🎯 Event ID:', eventId);
 

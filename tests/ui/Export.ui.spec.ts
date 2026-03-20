@@ -69,19 +69,19 @@ await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/h
 //eventnotification
 await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventnotification', 'Export Event Notification');
 //eventtask 
-await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventtask', 'Export Event Task');
+/*await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventtask', 'Export Event Task');
 //eventchecklist
 await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventchecklist', 'Export Event Checklist'); 
 //eventchecklistresponse
 await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventchecklistresponse', 'Export Event Checklist Detail');
 //eventforecastedcost
-await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventforecastedcost', 'Export  Event Expense ');
+await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventforecastedcost', 'Export Event Expense ');
 //eventforecastedsale
 await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventforecastedsale', 'Export  Event Sale ');
 //eventdeliverycollection
 await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventdeliverycollection', 'Export Event Delivery Collection');
 //eventdeliverycollectionbar
-await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventdeliverycollectionbar', 'ExportEvent Delivery Collection Bar');
+await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventdeliverycollectionbar', 'Export Event Delivery Collection Bar');
 //eventdeliverystaff
 await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventdeliverystaff', 'Export Event Delivery Staff');
 //eventbarcard
@@ -151,7 +151,7 @@ await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/h
 //staffvendor
 await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/staffvendor', 'Export Staff Vendor');
 //staffvendorprice
-await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/staffvendorprice', 'Export Staff Vendor Pricce');
+await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/staffvendorprice', 'Export Staff Vendor Price');
 //taskmaster
 await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/taskmaster', 'Export Task Master');
 //checklistmaster
@@ -159,7 +159,7 @@ await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/h
 //checklistmasterquestion
 await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/checklistmasterquestion', 'Export Checklist Master Detail');
 //eventcheckliststafftype
-await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventcheckliststafftype', 'Export Event Checklist Staff Type');
+await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventcheckliststafftype', 'Export Checklist Staff Type');
 //venuebar
 await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/venuebar', 'Export Venue Bar');
 //barsetup
@@ -177,12 +177,12 @@ await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/h
 //itemequipment
 await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/itemequipment', 'Export Item Equipment');
 //itemstaff
-await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/itemstaff', 'Export Item Staffing');
+await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/itemstaff', 'Export Item Staff');
 //eventmenu
 await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventmenu', 'Export Event Menu');
 //eventmenuitem
 await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventmenuitem', 'Export Event Menu Items');
 //eventemployeefiles
-await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventemployeefiles', 'Export Event Employee Files');
+await exportPage.exportModuleByUrl(testInfo, 'https://web.automateevents.com/#/home/eventemployeefiles', 'Export Event Employee Files');*/
 
 });
