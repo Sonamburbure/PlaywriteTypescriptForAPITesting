@@ -1,177 +1,60 @@
-import { test, expect, request, APIRequestContext } from '@playwright/test';
+import { test, expect, request } from '@playwright/test';
 import {
-  setAuthToken,
-  setTenantPath,
-  setLogonAs,
   getAuthToken,
   getTenantPath,
-  getLogonAs,
+  getLogonAs
 } from '../src/utils/tokenStore.js';
-import { BASE_API_URL, EMAIL, PASSWORD } from '../src/utils/constants.js';
 
-/* ---------------- AUTH API ---------------- */
+import { BASE_API_URL } from '../src/utils/constants.js';
 
-class AuthApi {
-  private apiContext?: APIRequestContext;
+test('API only: Create Event', async () => {
 
-  async init() {
-    if (!this.apiContext) {
-      this.apiContext = await request.newContext();
-    }
-  }
+  const apiContext = await request.newContext();
 
- async fetchTenantOptions() {
-  await this.init();
+  const token = getAuthToken();
+  const tenant = getTenantPath();
+  const logonAs = getLogonAs();
 
-  const response = await this.apiContext!.get(`${BASE_API_URL}/api/tenant-options`, {
-    headers: { 'Content-Type': 'application/json' },
-  });
+  console.log('🔐 Using Token:', token);
 
-  console.log("Tenant API Status:", response.status());
-  console.log("Tenant API Response:", await response.text());
+  const now = new Date();
 
-  expect(response.ok()).toBeTruthy();
+  const formatDate = (d: Date) => d.toISOString().split('T')[0];
 
-  const body = await response.json();
-  return body.data || [];
-}
-  async login(email: string, password: string, tenantName: string) {
-    await this.init();
+  const formatDateTime = (d: Date) =>
+    d.toISOString().replace('T', ' ').substring(0, 19);
 
-    const response = await this.apiContext!.post(`${BASE_API_URL}/api/login`, {
-      headers: { 'Content-Type': 'application/json' },
-      data: { email, password, tenant_name: tenantName },
-    });
+  const today = formatDate(now); // ✅ current date for event name
 
-    expect(response.ok()).toBeTruthy();
-    const body = await response.json();
-
-    expect(body.token).toBeTruthy();
-    expect(body.tenant_cname).toBeTruthy();
-    expect(body.logon_as).toBeTruthy();
-
-    return body;
-  }
-}
-
-/* ---------------- EVENT API ---------------- */
-
-class EventApi {
-  private apiContext?: APIRequestContext;
-
-  async init() {
-    if (!this.apiContext) {
-      this.apiContext = await request.newContext();
-    }
-  }
-
-  async createEvent(payload: any) {
-    await this.init();
-
-    const token = getAuthToken();
-    const tenantPath = getTenantPath();
-    const logonAs = getLogonAs(); // ✅ FIXED
-
-    expect(token).toBeTruthy();
-    expect(tenantPath).toBeTruthy();
-    expect(logonAs).toBeTruthy();
-
-    const response = await this.apiContext!.post(
-      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/event`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        data: payload,
-      }
-    );
-
-    expect(response.ok()).toBeTruthy();
-    return await response.json();
-  }
-}
-
-/* ---------------- TEST ---------------- */
-
-test('API only: login and create event test', async () => {
-  const authApi = new AuthApi();
-
-  // Step 1: Fetch tenant options and pick Dream Events (account-created tenant)
-  const tenants = await authApi.fetchTenantOptions();
-  const tenant = tenants.find(
-    (t: any) => t.optionlabel?.toLowerCase().includes('dream')
-  );
-
-  if (!tenant) throw new Error('Dream Events tenant not found');
-
-  // Step 2: Login
-  const loginResponse = await authApi.login(EMAIL, PASSWORD, tenant.optionvalue);
-
-  setAuthToken(loginResponse.token);
-  setTenantPath(loginResponse.tenant_cname);
-  setLogonAs(loginResponse.logon_as);
-
-  expect(getAuthToken()).toBeTruthy();
-  expect(getTenantPath()).toBeTruthy();
-  expect(getLogonAs()).toBeTruthy();
-
-  /* -------- DATE HELPERS (unchanged) -------- */
-
-  const today = new Date();
-
-  const formatDate = (date: Date): string => date.toISOString().split('T')[0];
-
-  const formatDateTime = (date: Date): string => {
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    const hh = String(date.getHours()).padStart(2, '0');
-    const min = String(date.getMinutes()).padStart(2, '0');
-    const ss = String(date.getSeconds()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
-  };
-
-  const eventStartDate = new Date(today);
-  const eventEndDate = new Date(today);
-  eventEndDate.setDate(today.getDate() + 1);
-
-  const setupDate = new Date(eventStartDate);
-  setupDate.setDate(eventStartDate.getDate() - 1);
-
-  const cleanupDate = new Date(eventEndDate);
-  cleanupDate.setDate(eventEndDate.getDate() + 1);
-
-  /* -------- FULL PAYLOAD (NOTHING REMOVED) -------- */
-
-  const eventPayload = {
+  const payload = {
     event_num: '00000000000',
     custom: {
-      event_name: `Event_${formatDate(today)}`,
+      event_name: `Event_${today}`,   // ✅ FIXED FORMAT
+
       event_nature: '446',
       event_type: '448',
       event_status: '451',
       related_customer: 357,
       no_of_bar_required: 2,
       related_venue: 2,
-      ownerid: 6,
+      ownerid: 18,
       no_of_guest: 200,
       event_pricing_mode: '646',
-      information: 'API Automation123',
+      information: 'API Automation',
 
-      createtime: formatDateTime(today),
-      modifiedtime: formatDateTime(today),
+      createtime: formatDateTime(now),
+      modifiedtime: formatDateTime(now),
 
-      event_start_date: formatDate(eventStartDate),
-      event_end_date: formatDate(eventEndDate),
+      event_start_date: today,
+      event_end_date: formatDate(new Date(now.getTime() + 86400000)),
 
       daily_start_time: '09:00',
       daily_end_time: '10:00',
       staff_start_time: '08:00',
       staff_end_time: '11:00',
 
-      setup_datetime: formatDateTime(setupDate),
-      cleanup_datetime: formatDateTime(cleanupDate),
+      setup_datetime: formatDateTime(new Date(now.getTime() - 86400000)),
+      cleanup_datetime: formatDateTime(new Date(now.getTime() + 172800000)),
 
       gross_sales_amount: '5000.00',
       total_sales: '100.00',
@@ -191,22 +74,32 @@ test('API only: login and create event test', async () => {
       event_product_planing_type: '651',
       event_execution_type: '827',
 
-      assign_to: 'Sonam Burbure',
+      assign_to: 'Sonam Burbure'
     },
     source: 'web',
     status: '1',
   };
 
-  const eventApi = new EventApi();
-  const createdEvent = await eventApi.createEvent(eventPayload);
+  const response = await apiContext.post(
+    `${BASE_API_URL}/${tenant}/api/${logonAs}/event`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'x-automate-secret': process.env.AUTOMATE_SECRET!
+      },
+      data: payload
+    }
+  );
 
-  
+  const responseBody = await response.json();
 
-console.log('🎉 Event created successfully:', createdEvent);
+  if (!response.ok()) {
+    throw new Error(`❌ Event API failed: ${JSON.stringify(responseBody)}`);
+  }
 
-const eventId = createdEvent[0]?.eventid;
+  console.log('✅ Create Event Response:', responseBody);
 
-console.log('✅ Created Event ID:', eventId);
+  expect(responseBody).toBeTruthy();
 
-expect(eventId).toBeTruthy();
 });

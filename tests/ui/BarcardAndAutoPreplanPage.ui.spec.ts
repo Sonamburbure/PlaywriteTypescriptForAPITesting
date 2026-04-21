@@ -3,8 +3,8 @@ import { CreateEventPage } from '../../src/pages/CreateEventPage.js';
 import { BarcardAndAutoPreplanPage } from '../../src/pages/BarcardAndAutoPreplanPage.js';
 
 test('Create Event + Barcard + AutoPreplan UI Test', async ({ page }) => {
-//await page.goto('https://web.automateevents.com/#/home/event/detail/102');
-  await page.goto(process.env.BASE_UI_URL!);
+await page.goto('https://web.automateevents.com/#/home/event/detail/136');
+ // await page.goto(process.env.BASE_UI_URL!);
 
   const createEventPage = new CreateEventPage(page);
   await createEventPage.createEvent();

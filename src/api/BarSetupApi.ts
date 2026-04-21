@@ -2,20 +2,20 @@ import { getAuthToken, getTenantPath, getLogonAs } from '../utils/tokenStore.js'
 import { BASE_API_URL } from '../utils/constants.js';
 import type { APIRequestContext } from '@playwright/test';
 
-export class VenueApi {
+export class barsetupApi {
   private apiContext: APIRequestContext;
 
   constructor(apiContext: APIRequestContext) {
     this.apiContext = apiContext;
   }
 
-  async Account(payload: any) {
+  async createbarsetup(payload: any) {
     const token = getAuthToken();
     const tenantPath = getTenantPath();
     const logonAs = getLogonAs();
 
     if (!token || !tenantPath || !logonAs) {
-      throw new Error('Missing authentication token, tenant path, or logonAs value.');
+      throw new Error('❌ Missing authentication token / tenant / logonAs');
     }
 
     const response = await this.apiContext.post(
@@ -24,15 +24,20 @@ export class VenueApi {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'x-automate-secret': process.env.AUTOMATE_SECRET!  // ✅ IMPORTANT
         },
         data: payload,
       }
     );
 
+    const responseBody = await response.json();
+
     if (!response.ok()) {
-      throw new Error(`venue module failed with status: ${response.status()}`);
+      throw new Error(
+        `❌ barsetup API failed: ${response.status()} \n${JSON.stringify(responseBody)}`
+      );
     }
 
-    return response.json();
+    return responseBody;
   }
 }

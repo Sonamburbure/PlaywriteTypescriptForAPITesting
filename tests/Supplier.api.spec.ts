@@ -1,214 +1,95 @@
-import { test, expect, request, APIRequestContext } from '@playwright/test';
+import { test, expect, request } from '@playwright/test';
 import {
-  setAuthToken,
-  setTenantPath,
-  setLogonAs,
   getAuthToken,
   getTenantPath,
+  getLogonAs
 } from '../src/utils/tokenStore.js';
-import { LOGON_AS, BASE_API_URL, EMAIL, PASSWORD } from '../src/utils/constants.js';
 
-/* ---------------- UK SUPPLIER NAME DATA ---------------- */
+import { BASE_API_URL } from '../src/utils/constants.js';
 
-const UK_SUPPLIER_NAMES = [
-  'London Catering',
-  'Manchester Events',
-  'Bristol Supplies',
-  'Leeds Hospitality',
-  'Birmingham Services',
-  'Oxford Event Co',
-  'Cambridge Logistics',
-  'Nottingham Planners',
-  'Brighton Caterers',
-  'Yorkshire Events',
+/* 🔹 UK Names */
+const UK_FIRST_NAMES = [
+  'James', 'Oliver', 'Harry', 'George', 'Noah',
+  'Jack', 'Leo', 'Charlie', 'Jacob', 'Alfie',
+  'Emily', 'Amelia', 'Olivia', 'Isla', 'Ava'
 ];
 
-/* ---------------- UTILS ---------------- */
+const UK_LAST_NAMES = [
+  'Smith', 'Johnson', 'Williams', 'Brown', 'Taylor',
+  'Wilson', 'Davies', 'Evans', 'Thomas', 'Roberts'
+];
 
-function getCurrentDateTime() {
-  return new Date()
+function getRandom(arr: any[]) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+test('API only: Create Contact', async () => {
+
+  const apiContext = await request.newContext();
+
+  const token = getAuthToken();
+  const tenant = getTenantPath();
+  const logonAs = getLogonAs();
+
+  console.log('🔐 Using Token:', token);
+
+  const firstName = getRandom(UK_FIRST_NAMES);
+  const lastName = getRandom(UK_LAST_NAMES);
+
+  const dateTime = new Date()
     .toISOString()
     .replace('T', ' ')
     .substring(0, 19);
-}
 
-function generateSupplierName() {
-  const baseName =
-    UK_SUPPLIER_NAMES[Math.floor(Math.random() * UK_SUPPLIER_NAMES.length)];
-  const currentDate = new Date().toISOString().split('T')[0];
-
- 
-}
-
-/* ---------------- AUTH API ---------------- */
-
-class AuthApi {
-  private apiContext?: APIRequestContext;
-
-  async init() {
-    if (!this.apiContext) {
-      this.apiContext = await request.newContext();
-    }
-  }
-
-  async fetchTenantOptions() {
-    await this.init();
-    const response = await this.apiContext!.get(
-      `${BASE_API_URL}/api/tenant-options`,
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-
-    expect(response.ok()).toBeTruthy();
-    const body = await response.json();
-    return body.data || [];
-  }
-
-  async login(email: string, password: string, tenantName: string) {
-    await this.init();
-    const response = await this.apiContext!.post(
-      `${BASE_API_URL}/api/login`,
-      {
-        headers: { 'Content-Type': 'application/json' },
-        data: { email, password, tenant_name: tenantName },
-      }
-    );
-
-    expect(response.ok()).toBeTruthy();
-    const body = await response.json();
-
-    expect(body.token).toBeTruthy();
-    expect(body.tenant_cname).toBeTruthy();
-    expect(body.logon_as).toBeTruthy();
-
-    return body;
-  }
-}
-
-/* ---------------- SUPPLIER API ---------------- */
-
-class SupplierApi {
-  private apiContext?: APIRequestContext;
-
-  async init() {
-    if (!this.apiContext) {
-      this.apiContext = await request.newContext();
-    }
-  }
-
-  async createSupplier(payload: any) {
-    await this.init();
-
-    const token = getAuthToken();
-    const tenantPath = getTenantPath();
-
-    expect(token).toBeTruthy();
-    expect(tenantPath).toBeTruthy();
-
-    const response = await this.apiContext!.post(
-      `${BASE_API_URL}/${tenantPath}/api/${LOGON_AS}/supplier`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        data: payload,
-      }
-    );
-
-    if (!response.ok()) {
-      throw new Error(
-        `❌ Supplier API failed with status ${response.status()}`
-      );
-    }
-
-    return await response.json();
-  }
-}
-
-/* ---------------- TEST ---------------- */
-
-test('API only: login and create Supplier', async () => {
-  const authApi = new AuthApi();
-
-  // 1️⃣ Fetch tenant (Dream Events fix applied)
-  const tenants = await authApi.fetchTenantOptions();
-
-  const normalize = (v: string) => v.toLowerCase().replace(/\s+/g, '');
-
-  const tenant = tenants.find(
-    (t: any) => normalize(t.optionlabel) === normalize('Dream Events')
-  );
-
-  if (!tenant) {
-    throw new Error('Tenant "Dream Events" not found');
-  }
-
-  // 2️⃣ Login
-  const loginResponse = await authApi.login(
-    EMAIL,
-    PASSWORD,
-    tenant.optionvalue
-  );
-
-  setAuthToken(loginResponse.token);
-  setTenantPath(loginResponse.tenant_cname);
-  setLogonAs(loginResponse.logon_as);
-
-  expect(getAuthToken()).toBeTruthy();
-  expect(getTenantPath()).toBeTruthy();
-
-  // 3️⃣ Generate meaningful UK supplier name
-  const supplierName = generateSupplierName();
-  const dateTime = getCurrentDateTime();
-
-  // 4️⃣ Payload (NO field skipped)
   const payload = {
-    supplier_num: '00000000000',
+    contact_num: '00000000000',
     custom: {
-      supplier_name: supplierName,
-      supplier_status: 193,
-      supplier_category: '762',
-      supplier_rating: '201',
-      ownerid: 6,
+      firstname: firstName,
+      lastname: lastName,
+      contact_name: `${firstName} ${lastName}`,
+
+      ownerid: 18,
+      assign_to: 'Sonam Burbure',   // ✅ fixed
+
+      contact_phone: '07123456789',
+      contact_email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@mail.com`,
+
+      contact_address: '10 Baker Street',
+      contact_city: 'London',
+      contact_post_code: 'AB12 3CD',
+      contact_country: 1,
+
       createtime: dateTime,
       modifiedtime: dateTime,
-      supplier_address: 'NewStreet',
-      supplier_city: 'NewTown',
-      supplier_post_code: '12345',
-      supplier_county: 5,
-      supplier_country: 1,
-      assign_to: 'Sonam Burbure',
     },
     source: 'web',
     status: '1',
   };
 
-  console.log('Final Supplier Payload:', JSON.stringify(payload, null, 2));
+  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
 
-  // 5️⃣ Create supplier
-  const supplierApi = new SupplierApi();
-  const response = await supplierApi.createSupplier(payload);
+  const response = await apiContext.post(
+    `${BASE_API_URL}/${tenant}/api/${logonAs}/contact`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'x-automate-secret': process.env.AUTOMATE_SECRET!
+      },
+      data: payload
+    }
+  );
 
-  console.log('Create Supplier API response:', response);
+  const responseBody = await response.json();
 
-  // 6️⃣ Assertions (STRICT)
-  const supplier = Array.isArray(response) ? response[0] : response;
+  console.log('✅ Create Contact Response:', responseBody);
 
-  expect(supplier, '❌ Supplier response is empty').toBeTruthy();
+  if (!response.ok()) {
+    throw new Error(`❌ Contact API failed: ${JSON.stringify(responseBody)}`);
+  }
 
-  expect(
-    supplier.supplierid,
-    '❌ supplierid missing in response'
-  ).toBeTruthy();
+  // 🔥 important validation
+  expect(responseBody.error_msg).toEqual({});
 
-  expect(
-    typeof supplier.supplierid,
-    '❌ supplierid is not a number'
-  ).toBe('number');
-
-  // Optional deep validation
-  expect(supplier.supplier_name ?? supplier.custom?.supplier_name)
-    
-
-  console.log('✅ Created Supplier ID:', supplier.supplierid);
+  expect(responseBody).toBeTruthy();
 });

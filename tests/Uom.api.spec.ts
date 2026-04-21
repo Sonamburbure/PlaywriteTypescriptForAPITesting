@@ -1,0 +1,92 @@
+import { test, expect, request } from '@playwright/test';
+import {
+  getAuthToken,
+  getTenantPath,
+  getLogonAs
+} from '../src/utils/tokenStore.js';
+
+import { BASE_API_URL } from '../src/utils/constants.js';
+
+/* -------- UOM NAME GENERATOR -------- */
+
+const UOM_NAMES = [
+  'Liter Pack',
+  'Bottle Size',
+  'Bulk Liquid',
+  'Container Volume',
+  'Storage Unit',
+  'Beverage Pack',
+  'Liquid Measure',
+  'Supply Unit'
+];
+
+function getRandom(arr: string[]) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function formatDateTime(d: Date) {
+  return d.toISOString().replace('T', ' ').substring(0, 19);
+}
+
+test('API only: Create Unit of Measure', async () => {
+
+  const apiContext = await request.newContext();
+
+  const token = getAuthToken();
+  const tenant = getTenantPath();
+  const logonAs = getLogonAs();
+
+  console.log('🔐 Using Token:', token);
+
+  const now = new Date();
+  const dateTime = formatDateTime(now);
+
+  // 🔥 Dynamic + logical name
+  const uomName = `${getRandom(UOM_NAMES)}_${Date.now()}`;
+
+  const payload = {
+    unitofmeasure_num: "00000000000",
+    custom: {
+      unitofmeasure_name: uomName,
+
+      allow_multiple_product: "53",
+      default_consumable_unit: 527,
+      consumable_quantity: "5000.00",
+
+      ownerid: 18,
+      createtime: dateTime,
+      modifiedtime: dateTime,
+
+      assign_to: "Sonam Burbure" // ⚠️ if error → use 18
+    },
+    source: "web",
+    status: "1"
+  };
+
+  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+
+  const response = await apiContext.post(
+    `${BASE_API_URL}/${tenant}/api/${logonAs}/unitofmeasure`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'x-automate-secret': process.env.AUTOMATE_SECRET!
+      },
+      data: payload
+    }
+  );
+
+  const responseBody = await response.json();
+
+  console.log('📩 Response:', responseBody);
+
+  if (!response.ok()) {
+    throw new Error(`❌ UOM API failed: ${JSON.stringify(responseBody)}`);
+  }
+
+  console.log('✅ Create UOM Response:', responseBody);
+
+  expect(responseBody).toBeTruthy();
+
+});

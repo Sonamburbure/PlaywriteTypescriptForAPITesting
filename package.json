@@ -7,8 +7,10 @@
   "scripts": {
   "api:stage": "cross-env ENV_FILE=.env.stage TEST_TYPE=api npx playwright test --project=api",
   "api:prod": "cross-env ENV_FILE=.env.prod TEST_TYPE=api npx playwright test --project=api",
+  "api:dev": "cross-env ENV_FILE=.env.dev TEST_TYPE=api npx playwright test --project=api",
   "ui:stage": "cross-env ENV_FILE=.env.stage TEST_TYPE=ui npx playwright test --project=ui",
   "ui:prod": "cross-env ENV_FILE=.env.prod TEST_TYPE=ui npx playwright test --project=ui",
+  "ui:dev": "cross-env ENV_FILE=.env.dev TEST_TYPE=ui npx playwright test --project=ui",
   "report": "npx playwright show-report"
 
   },

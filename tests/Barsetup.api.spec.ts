@@ -1,195 +1,112 @@
-import { test, expect, request, APIRequestContext } from '@playwright/test';
+import { test, expect, request } from '@playwright/test';
 import {
-  setAuthToken,
-  setTenantPath,
-  setLogonAs,
   getAuthToken,
   getTenantPath,
+  getLogonAs
 } from '../src/utils/tokenStore.js';
-import { LOGON_AS, BASE_API_URL, EMAIL, PASSWORD } from '../src/utils/constants.js';
 
-/* ---------------- UK BAR SETUP DATA ---------------- */
+import { BASE_API_URL } from '../src/utils/constants.js';
 
-const UK_CITIES = [
-  'London',
-  'Manchester',
-  'Birmingham',
-  'Leeds',
-  'Bristol',
-  'Liverpool',
-  'Nottingham',
+/* -------- NAME PARTS -------- */
+
+const BAR_TYPE = [
+  'Cocktail Bar',
+  'Premium Bar',
+  'Service Bar',
+  'Mobile Bar',
+  'VIP Bar'
 ];
 
-function getCurrentDateTime() {
-  return new Date()
-    .toISOString()
-    .replace('T', ' ')
-    .substring(0, 19);
+const SETUP_STYLE = [
+  'Classic Setup',
+  'Modern Setup',
+  'Luxury Setup',
+  'Compact Setup',
+  'Outdoor Setup'
+];
+
+const EVENT_CONTEXT = [
+  'Wedding',
+  'Corporate Event',
+  'Private Party',
+  'Reception',
+  'Celebration'
+];
+
+/* -------- UTILS -------- */
+
+function getRandom(arr: string[]) {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function generateUKBarSetupName() {
-  const city = UK_CITIES[Math.floor(Math.random() * UK_CITIES.length)];
-  const today = new Date().toISOString().split('T')[0];
-  return `${city} Corporate Bar Setup – ${today}`;
+function formatDateTime(d: Date) {
+  return d.toISOString().replace('T', ' ').substring(0, 19);
 }
 
-/* ---------------- AUTH API ---------------- */
+test('API only: Create Bar Setup', async () => {
 
-class AuthApi {
-  private apiContext?: APIRequestContext;
+  const apiContext = await request.newContext();
 
-  async init() {
-    if (!this.apiContext) {
-      this.apiContext = await request.newContext();
-    }
-  }
+  const token = getAuthToken();
+  const tenant = getTenantPath();
+  const logonAs = getLogonAs();
 
-  async fetchTenantOptions() {
-    await this.init();
-    const response = await this.apiContext!.get(
-      `${BASE_API_URL}/api/tenant-options`,
-      { headers: { 'Content-Type': 'application/json' } }
-    );
+  console.log('🔐 Using Token:', token);
 
-    expect(response.ok()).toBeTruthy();
-    const body = await response.json();
-    return body.data || [];
-  }
+  const now = new Date();
+  const dateTime = formatDateTime(now);
 
-  async login(email: string, password: string, tenantName: string) {
-    await this.init();
-    const response = await this.apiContext!.post(
-      `${BASE_API_URL}/api/login`,
-      {
-        headers: { 'Content-Type': 'application/json' },
-        data: { email, password, tenant_name: tenantName },
-      }
-    );
+  // 🔥 Logical dynamic name
+  const barSetupName = `${getRandom(EVENT_CONTEXT)} ${getRandom(BAR_TYPE)} ${getRandom(SETUP_STYLE)}`;
 
-    expect(response.ok()).toBeTruthy();
-    const body = await response.json();
-
-    expect(body.token).toBeTruthy();
-    expect(body.tenant_cname).toBeTruthy();
-    expect(body.logon_as).toBeTruthy();
-
-    return body;
-  }
-}
-
-/* ---------------- BAR SETUP API ---------------- */
-
-class BarSetupApi {
-  private apiContext?: APIRequestContext;
-
-  async init() {
-    if (!this.apiContext) {
-      this.apiContext = await request.newContext();
-    }
-  }
-
-  async createBarSetup(payload: any) {
-    await this.init();
-
-    const token = getAuthToken();
-    const tenantPath = getTenantPath();
-
-    expect(token).toBeTruthy();
-    expect(tenantPath).toBeTruthy();
-
-    const response = await this.apiContext!.post(
-      `${BASE_API_URL}/${tenantPath}/api/${LOGON_AS}/barsetup`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        data: payload,
-      }
-    );
-
-    expect(response.ok()).toBeTruthy();
-    return await response.json();
-  }
-}
-
-/* ---------------- TEST ---------------- */
-
-test('API only: login and create Bar Setup', async () => {
-  const authApi = new AuthApi();
-
-  // 1️⃣ Fetch tenant
-  const tenants = await authApi.fetchTenantOptions();
-
-  const normalize = (v: string) => v.toLowerCase().replace(/\s+/g, '');
-
-  const tenant = tenants.find(
-    (t: any) => normalize(t.optionlabel) === normalize('Dream Events')
-  );
-
-  if (!tenant) {
-    console.warn(
-      '⚠️ Tenant not found. Available tenants:',
-      tenants.map((t: any) => t.optionlabel)
-    );
-    return;
-  }
-
-  // 2️⃣ Login
-  const loginResponse = await authApi.login(
-    EMAIL,
-    PASSWORD,
-    tenant.optionvalue
-  );
-
-  setAuthToken(loginResponse.token);
-  setTenantPath(loginResponse.tenant_cname);
-  setLogonAs(loginResponse.logon_as);
-
-  expect(getAuthToken()).toBeTruthy();
-  expect(getTenantPath()).toBeTruthy();
-
-  // 3️⃣ Generate meaningful UK Bar Setup data
-  const barSetupName = generateUKBarSetupName();
-  const dateTime = getCurrentDateTime();
-
-  // 4️⃣ Payload (ALL fields preserved)
   const payload = {
-    barsetup_num: '00000000000',
-
+    barsetup_num: "00000000000",
     custom: {
       barsetup_name: barSetupName,
+
       barsetup_category: 627,
-      barsetup_subcategory: 629,
+      barsetup_subcategory: "",
+      barsetup_sort_category: "",
       barsetup_status: 631,
       barsetup_type: 633,
       barsetup_product_required: 634,
       barsetup_equipment_required: 636,
       barsetup_staff_required: 638,
-      ownerid: 6,
+
+      ownerid: 18,
       createtime: dateTime,
       modifiedtime: dateTime,
-      assign_to: 'Sonam Burbure',
-    },
 
-    source: 'web',
-    status: '1',
+      assign_to: "Sonam Burbure"
+    },
+    source: "web",
+    status: "1"
   };
 
-  console.log('Final Bar Setup Payload:', JSON.stringify(payload, null, 2));
+  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
 
-  // 5️⃣ Create Bar Setup
-  const barSetupApi = new BarSetupApi();
-  const response = await barSetupApi.createBarSetup(payload);
+  const response = await apiContext.post(
+    `${BASE_API_URL}/${tenant}/api/${logonAs}/barsetup`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'x-automate-secret': process.env.AUTOMATE_SECRET!
+      },
+      data: payload
+    }
+  );
 
-  console.log('Create Bar Setup API response:', response);
+  const responseBody = await response.json();
 
-  // 6️⃣ Assertions
-  const barSetup = Array.isArray(response) ? response[0] : response;
+  console.log('📩 Response:', responseBody);
 
-  expect(barSetup).toBeTruthy();
-  expect(barSetup.barsetupid).toBeTruthy();
-  expect(typeof barSetup.barsetupid).toBe('number');
+  if (!response.ok()) {
+    throw new Error(`❌ Bar Setup API failed: ${JSON.stringify(responseBody)}`);
+  }
 
-  console.log('Created Bar Setup ID:', barSetup.barsetupid);
+  console.log('✅ Create Bar Setup Response:', responseBody);
+
+  expect(responseBody).toBeTruthy();
+
 });

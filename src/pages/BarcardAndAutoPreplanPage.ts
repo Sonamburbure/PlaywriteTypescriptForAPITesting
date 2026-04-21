@@ -1,4 +1,3 @@
-
 import { Page, Locator, expect } from '@playwright/test';
 
 export class BarcardAndAutoPreplanPage {
@@ -24,10 +23,9 @@ export class BarcardAndAutoPreplanPage {
   readonly successMessage: Locator;
 
   constructor(page: Page) {
-
     this.page = page;
 
-    this.plusIcon = page.locator("//div[@class='crncydiv location_add']//i");
+    this.plusIcon = page.locator("//div[@class='crncydiv location_add']//i").first();
     this.barNameInput = page.locator("//input[@placeholder='Put Bar Name']");
 
     this.barSetupSearch = page.locator("(//span[@id='btn-search'])[2]");
@@ -49,60 +47,64 @@ export class BarcardAndAutoPreplanPage {
 
   async createBarCard() {
 
-    const barNames = [
-      "VibeBar",
-      
-      "GlowDrinks",
-      
-      
-      
-      "MoodMixer",
-      
-    ];
-
+    const barNames = ["VibeBar", "GlowDrinks", "MoodMixer"];
     const randomName = barNames[Math.floor(Math.random() * barNames.length)];
 
-    // JavaScript scroll to bottom
-    await this.page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight);
-    });
+    // Scroll safely
+    await this.page.mouse.wheel(0, 5000);
 
-    await this.page.waitForTimeout(1500);
+    // ✅ Wait + click (important for Jenkins)
+    await this.plusIcon.waitFor({ state: 'visible', timeout: 120000 });
+    await this.plusIcon.click({ force: true });
 
-    await this.plusIcon.click();
-
+    await this.barNameInput.waitFor({ state: 'visible' });
     await this.barNameInput.fill(randomName);
 
-    // Select Bar Setup
-    await this.barSetupSearch.click();
-    await this.weddingThemeBar.click();
+    // Bar Setup
+    await this.barSetupSearch.waitFor({ state: 'visible' });
+    await this.barSetupSearch.click({ force: true });
 
-    // Select Menu
-    await this.menuSearch.click();
-    await this.confirmButton.click();
+    await this.weddingThemeBar.waitFor({ state: 'visible' });
+    await this.weddingThemeBar.click({ force: true });
 
+    // Menu Selection
+    await this.menuSearch.waitFor({ state: 'visible' });
+    await this.menuSearch.click({ force: true });
+
+    await this.confirmButton.waitFor({ state: 'visible' });
+    await this.confirmButton.click({ force: true });
+
+    await this.menuSearchInput.waitFor({ state: 'visible' });
     await this.menuSearchInput.fill("Delecious");
-    await this.deliciousFood.click();
 
-    await this.saveButton.click();
+    await this.deliciousFood.waitFor({ state: 'visible' });
+    await this.deliciousFood.click({ force: true });
+
+    await this.saveButton.waitFor({ state: 'visible' });
+    await this.saveButton.click({ force: true });
 
     console.log(`✅ Barcard created: ${randomName}`);
 
-    await this.page.waitForTimeout(3000);
+    // ✅ Wait for save to complete instead of static wait
+    await this.page.waitForLoadState('networkidle');
+
     await this.page.reload();
   }
 
   async createAutoPreplan() {
 
-    await this.moreButton.click();
-    await this.createPrePlanning.click();
+    await this.moreButton.waitFor({ state: 'visible', timeout: 120000 });
+    await this.moreButton.click({ force: true });
 
-    await this.confirmButton.click();
+    await this.createPrePlanning.waitFor({ state: 'visible' });
+    await this.createPrePlanning.click({ force: true });
 
-    await this.page.getByText(/Pre Planning/i).waitFor({ timeout: 20000 });
+    await this.confirmButton.waitFor({ state: 'visible' });
+    await this.confirmButton.click({ force: true });
+
+    // ✅ Proper validation instead of blind wait
+    await expect(this.successMessage).toBeVisible({ timeout: 30000 });
 
     console.log("✅ Auto Preplan created successfully");
   }
-
 }
-

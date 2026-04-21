@@ -4,7 +4,7 @@ import type { APIRequestContext } from '@playwright/test';
 
 export class ContactApi {
   private apiContext: APIRequestContext;
-
+ private contactId: number | null = null;
   constructor(apiContext: APIRequestContext) {
     this.apiContext = apiContext;
   }
@@ -24,15 +24,55 @@ export class ContactApi {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
+        
+          'x-automate-secret': process.env.AUTOMATE_SECRET!
         },
         data: payload,
-      }
+        }
     );
 
-    if (!response.ok()) {
-      throw new Error(`Contact module failed with status: ${response.status()}`);
-    }
+  const responseBody = await response.json();
 
-    return response.json();
+    if (!response.ok()) {
+      throw new Error(
+        `❌ contact API failed: ${response.status()} \n${JSON.stringify(responseBody)}`
+      );
+    }
+const data=Array.isArray(responseBody)?responseBody[0]:responseBody;
+  this.contactId = data?.contactid || data?.contact_id || data?.id;
+
+    console.log("🆔 Stored contactId:", this.contactId);
+
+    return data;
   }
+
+ async getAccount() {
+    if (!this.contactId) {
+      throw new Error('❌ contactId not found. Call createContact first.');
+    }
+  const token =getAuthToken();
+  const tenantPath=getTenantPath();
+  const LogonAs=getLogonAs();
+  
+  const response =await this.apiContext.get(
+    `${BASE_API_URL}/${tenantPath}/api/${LogonAs}/contact/${this.contactId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      
+      
+        'x-automate-secret': process.env.AUTOMATE_SECRET!
+    }}
+  );
+  const responseBody = await response.json();
+
+if (!response.ok()) {
+  throw new Error(
+    `❌ GET contact API failed: ${response.status()} \n${JSON.stringify(responseBody)}`
+  );
 }
+const data=Array.isArray(responseBody)?responseBody[0]:responseBody;
+return data;
+
+ }}

@@ -1,209 +1,154 @@
-import { test, expect, request, APIRequestContext } from '@playwright/test';
-import {
-  setAuthToken,
-  setTenantPath,
-  setLogonAs,
-  getAuthToken,
-  getTenantPath,
-} from '../src/utils/tokenStore.js';
-import { LOGON_AS, BASE_API_URL, EMAIL, PASSWORD } from '../src/utils/constants.js';
+import { test, expect } from '@playwright/test';
+import { AccountApi } from '../src/api/AccountApi.js';
 
-/* ---------------- UK NAME DATA ---------------- */
+// ✅ UK Name Generator
+function generateUKCustomerName(): string {
+  const firstNames = [
+    "Oliver", "George", "Harry", "Jack", "Noah",
+    "Olivia", "Amelia", "Isla", "Ava", "Emily"
+  ];
 
-const UK_FIRST_NAMES = [
-  'James', 'Oliver', 'Harry', 'George', 'Noah',
-  'Jack', 'Leo', 'Charlie', 'Jacob', 'Alfie',
-  'Emily', 'Amelia', 'Olivia', 'Isla', 'Ava',
-  'Sophia', 'Mia', 'Charlotte', 'Ella', 'Grace'
-];
+  const lastNames = [
+    "Smith", "Jones", "Taylor", "Brown", "Williams",
+    "Wilson", "Johnson", "Davies", "Patel", "Wright"
+  ];
 
-const UK_LAST_NAMES = [
-  'Smith', 'Johnson', 'Williams', 'Brown', 'Taylor',
-  'Wilson', 'Davies', 'Evans', 'Thomas', 'Roberts',
-  'Walker', 'Wright', 'Thompson', 'White', 'Hughes'
-];
+  const first = firstNames[Math.floor(Math.random() * firstNames.length)];
+  const last = lastNames[Math.floor(Math.random() * lastNames.length)];
 
-/* ---------------- UTILS ---------------- */
-
-function getCurrentDateTime() {
-  return new Date()
-    .toISOString()
-    .replace('T', ' ')
-    .substring(0, 19);
+  return `${first} ${last}`;
 }
 
-function generateCustomerData() {
-  const firstName =
-    UK_FIRST_NAMES[Math.floor(Math.random() * UK_FIRST_NAMES.length)];
-  const lastName =
-    UK_LAST_NAMES[Math.floor(Math.random() * UK_LAST_NAMES.length)];
+// ✅ Logical UK Email Generator (no "updated")
+function generateUKEmail(name: string): string {
+  const domains = ["gmail.com", "outlook.com", "yahoo.co.uk"];
 
-  const timestamp = Date.now();
+  const cleanName = name.toLowerCase().replace(" ", ".");
+  const unique = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+
+  const domain = domains[Math.floor(Math.random() * domains.length)];
+
+  return `${cleanName}${unique}@${domain}`;
+}
+
+// ✅ Logical UK Address Generator
+function generateUKAddress() {
+  const streets = [
+    "Baker Street", "Oxford Street", "King's Road",
+    "High Street", "Victoria Road", "Church Lane"
+  ];
+
+  const cities = [
+    "London", "Manchester", "Birmingham",
+    "Leeds", "Liverpool", "Bristol"
+  ];
+
+  const postCodes = [
+    "EC1A 1BB", "W1A 0AX", "M1 1AE",
+    "B1 1AA", "LS1 1UR", "L1 8JQ"
+  ];
 
   return {
-    customerName: `${firstName} ${lastName}`,
-    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${timestamp}@mail.com`,
+    address: `${Math.floor(Math.random() * 200) + 1}, ${streets[Math.floor(Math.random() * streets.length)]}`,
+    city: cities[Math.floor(Math.random() * cities.length)],
+    postCode: postCodes[Math.floor(Math.random() * postCodes.length)]
   };
 }
 
-/* ---------------- AUTH API ---------------- */
+test('API: Create → Get → Update Account with Logical Data', async ({ request }) => {
 
-class AuthApi {
-  private apiContext?: APIRequestContext;
+  const accountApi = new AccountApi(request);
 
-  async init() {
-    if (!this.apiContext) {
-      this.apiContext = await request.newContext();
-    }
-  }
+  // =======================
+  // ✅ POST (Create)
+  // =======================
+  const customerName = generateUKCustomerName();
+  const email = generateUKEmail(customerName);
+  const address = generateUKAddress();
 
-  async fetchTenantOptions() {
-    await this.init();
-    const response = await this.apiContext!.get(
-      `${BASE_API_URL}/api/tenant-options`,
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-
-    expect(response.ok()).toBeTruthy();
-    const body = await response.json();
-    return body.data || [];
-  }
-
-  async login(email: string, password: string, tenantName: string) {
-    await this.init();
-    const response = await this.apiContext!.post(
-      `${BASE_API_URL}/api/login`,
-      {
-        headers: { 'Content-Type': 'application/json' },
-        data: { email, password, tenant_name: tenantName },
-      }
-    );
-
-    expect(response.ok()).toBeTruthy();
-    const body = await response.json();
-
-    expect(body.token).toBeTruthy();
-    expect(body.tenant_cname).toBeTruthy();
-    expect(body.logon_as).toBeTruthy();
-
-    return body;
-  }
-}
-
-/* ---------------- ACCOUNT API ---------------- */
-
-class AccountApi {
-  private apiContext?: APIRequestContext;
-
-  async init() {
-    if (!this.apiContext) {
-      this.apiContext = await request.newContext();
-    }
-  }
-
-  async createAccount(payload: any) {
-    await this.init();
-
-    const token = getAuthToken();
-    const tenantPath = getTenantPath();
-
-    expect(token).toBeTruthy();
-    expect(tenantPath).toBeTruthy();
-
-    const response = await this.apiContext!.post(
-      `${BASE_API_URL}/${tenantPath}/api/${LOGON_AS}/customer`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        data: payload,
-      }
-    );
-
-    expect(response.ok()).toBeTruthy();
-    return await response.json();
-  }
-}
-
-/* ---------------- TEST ---------------- */
-
-test('API only: login and create Account', async () => {
-  const authApi = new AuthApi();
-
-  // 1️⃣ Fetch tenant
-  const tenants = await authApi.fetchTenantOptions();
-
-  const normalize = (v: string) => v.toLowerCase().replace(/\s+/g, '');
-
-  const tenant = tenants.find(
-    (t: any) => normalize(t.optionlabel) === normalize('Dream Events')
-  );
-
-  if (!tenant) {
-    console.warn(
-      '⚠️ Tenant not found. Available tenants:',
-      tenants.map((t: any) => t.optionlabel)
-    );
-    return;
-  }
-
-  // 2️⃣ Login
-  const loginResponse = await authApi.login(
-    EMAIL,
-    PASSWORD,
-    tenant.optionvalue
-  );
-
-  setAuthToken(loginResponse.token);
-  setTenantPath(loginResponse.tenant_cname);
-  setLogonAs(loginResponse.logon_as);
-
-  expect(getAuthToken()).toBeTruthy();
-  expect(getTenantPath()).toBeTruthy();
-
-  // 3️⃣ Generate meaningful UK customer data
-  const { customerName, email } = generateCustomerData();
-  const dateTime = getCurrentDateTime();
-  const currentDate = dateTime.split(' ')[0];
-
-  // 4️⃣ Payload (unchanged except meaningful name)
-  const payload = {
+  const createPayload = {
     customer_num: '00000000000',
-
     custom: {
-      customer_name: `${customerName}_${currentDate}`,
-      customer_phone: '123456789',
+      customer_name: customerName,
+      customer_phone: '07123456789',
       customer_email: email,
       assign_to: 'Sonam Burbure',
-      ownerid: 6,
-      createtime: dateTime,
-      modifiedtime: dateTime,
-      customer_address: 'abc',
-      customer_city: 'NewTown',
-      customer_post_code: '12345',
+      ownerid: 18,
+      createtime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      modifiedtime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      customer_address: address.address,
+      customer_city: address.city,
+      customer_post_code: address.postCode,
       customer_county: 5,
       customer_country: 1,
     },
-
     source: 'web',
     status: '1',
   };
 
-  console.log('Final Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await accountApi.createAccount(createPayload);
 
-  // 5️⃣ Create account
-  const accountApi = new AccountApi();
-  const response = await accountApi.createAccount(payload);
+  console.log("📩 POST Response:", createRes);
 
-  console.log('Create Account API response:', response);
+  expect(createRes.customerid).toBeDefined();
+  expect(createRes.customer_name).toContain(customerName.split(' ')[0]);
 
-  // 6️⃣ Assertions
-  const account = Array.isArray(response) ? response[0] : response;
+  // =======================
+  // ✅ GET
+  // =======================
+  const getRes = await accountApi.getAccount();
 
-  expect(account).toBeTruthy();
-  expect(account.customerid).toBeTruthy();
-  expect(typeof account.customerid).toBe('number');
+  console.log("📩 GET Response:", getRes);
 
-  console.log('Created Account ID:', account.customerid);
+  expect(getRes.customer_name).toContain(customerName.split(' ')[0]);
+
+  // =======================
+  // ✅ PUT (Update)
+  // =======================
+  const updatedName = generateUKCustomerName();
+  const updatedEmail = generateUKEmail(updatedName);
+  const updatedAddress = generateUKAddress();
+
+  const updatePayload = {
+    customer_num: createRes.customer_num,
+    custom: {
+      customer_name: updatedName,
+      customer_phone: '07987654321',
+      customer_email: updatedEmail,
+      assign_to: 'Sonam Burbure',
+      ownerid: 18,
+      createtime: createRes.createtime,
+      modifiedtime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      customer_address: updatedAddress.address,
+      customer_city: updatedAddress.city,
+      customer_post_code: updatedAddress.postCode,
+      customer_county: 5,
+      customer_country: 1,
+    },
+    source: 'web',
+    status: '1',
+  };
+
+  console.log("🚀 PUT Payload:", updatePayload);
+
+  const putRes = await accountApi.updateAccount(updatePayload);
+
+  console.log("📩 PUT Response:", putRes);
+
+  if (putRes.error_msg || putRes.error) {
+    throw new Error(`❌ PUT Failed: ${JSON.stringify(putRes)}`);
+  }
+
+  expect(putRes.customer_name).toContain(updatedName.split(' ')[0]);
+
+  // =======================
+  // ✅ GET again (Verify update)
+  // =======================
+  const getUpdatedRes = await accountApi.getAccount();
+
+  console.log("📩 GET Updated Response:", getUpdatedRes);
+
+  expect(getUpdatedRes.customer_name)
+    .toContain(updatedName.split(' ')[0]);
+
 });

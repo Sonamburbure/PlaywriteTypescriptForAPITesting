@@ -1,46 +1,64 @@
-let authToken: string | undefined;
-let tenantPath: string | undefined;
-let logonAs: string | undefined;
+import fs from 'fs';
 
-// ---------- Auth Token ----------
+const FILE = 'auth.json';
+
+/* ---------- WRITE ---------- */
+
 export const setAuthToken = (token: string) => {
-  authToken = token;
+  const data = read();
+  data.authToken = token;
+  write(data);
 };
+
+export const setTenantPath = (tenant: string) => {
+  const data = read();
+  data.tenantPath = tenant;
+  write(data);
+};
+
+export const setLogonAs = (value: string) => {
+  const data = read();
+  data.logonAs = value;
+  write(data);
+};
+
+/* ---------- READ ---------- */
 
 export const getAuthToken = (): string => {
-  if (!authToken) {
+  const data = read();
+  if (!data.authToken) {
     throw new Error('Auth token not set. Did global-setup run successfully?');
   }
-  return authToken;
-};
-
-// ---------- Tenant Path ----------
-export const setTenantPath = (tenant: string) => {
-  tenantPath = tenant;
+  return data.authToken;
 };
 
 export const getTenantPath = (): string => {
-  if (!tenantPath) {
-    throw new Error('Tenant path not set. Login response missing tenant info.');
+  const data = read();
+  if (!data.tenantPath) {
+    throw new Error('Tenant path not set.');
   }
-  return tenantPath;
-};
-
-// ---------- Logon As ----------
-export const setLogonAs = (value: string) => {
-  logonAs = value;
+  return data.tenantPath;
 };
 
 export const getLogonAs = (): string => {
-  if (!logonAs) {
+  const data = read();
+  if (!data.logonAs) {
     throw new Error('LogonAs not set.');
   }
-  return logonAs;
+  return data.logonAs;
 };
 
-// ---------- Optional Debug Helper ----------
-export const debugTokenStore = () => ({
-  authToken,
-  tenantPath,
-  logonAs,
-});
+/* ---------- DEBUG ---------- */
+
+export const debugTokenStore = () => read();
+
+/* ---------- HELPERS ---------- */
+
+function read(): any {
+  if (!fs.existsSync(FILE)) return {};
+  return JSON.parse(fs.readFileSync(FILE, 'utf-8'));
+}
+
+function write(data: any) {
+  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+}

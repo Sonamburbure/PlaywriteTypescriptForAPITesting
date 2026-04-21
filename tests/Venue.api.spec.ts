@@ -12,7 +12,7 @@ import { BASE_API_URL, EMAIL, PASSWORD } from '../src/utils/constants.js';
 /* ---------------- UK PLACE DATA ---------------- */
 
 const UK_PLACES = [
-  'London', 'Manchester', 'A', 'Leeds', 'Liverpool',
+  'London', 'Manchester', 'Leeds', 'Liverpool',
   'Bristol', 'Nottingham', 'Sheffield', 'Leicester', 'Coventry',
   'Oxford', 'Cambridge', 'York', 'Bath', 'Reading',
   'Milton Keynes', 'Luton', 'Watford', 'Slough', 'Woking'
@@ -21,10 +21,7 @@ const UK_PLACES = [
 /* ---------------- UTILS ---------------- */
 
 function getCurrentDateTime() {
-  return new Date()
-    .toISOString()
-    .replace('T', ' ')
-    .substring(0, 19);
+  return new Date().toISOString().replace('T', ' ').substring(0, 19);
 }
 
 function normalize(value: string) {
@@ -114,8 +111,16 @@ export class VenueApi {
       }
     );
 
+    const body = await response.json();
+
     expect(response.ok()).toBeTruthy();
-    return await response.json();
+
+    // 🔥 FIX: Proper error handling
+    if (body.error_msg) {
+      throw new Error(`❌ Venue API Validation Failed: ${JSON.stringify(body.error_msg)}`);
+    }
+
+    return body;
   }
 }
 
@@ -124,7 +129,7 @@ export class VenueApi {
 test('API only: login and create Venue with UK place name', async () => {
   const authApi = new AuthApi();
 
-  // 1️⃣ Fetch tenant list (Dream Events fix applied)
+  // 1️⃣ Fetch tenant
   const tenants = await authApi.fetchTenantOptions();
 
   const tenant = tenants.find(
@@ -153,7 +158,7 @@ test('API only: login and create Venue with UK place name', async () => {
   expect(getAuthToken()).toBeTruthy();
   expect(getTenantPath()).toBeTruthy();
 
-  // 3️⃣ Prepare payload
+  // 3️⃣ Payload
   const currentDateTime = getCurrentDateTime();
   const venueName = generateUKVenueName();
 
@@ -166,24 +171,25 @@ test('API only: login and create Venue with UK place name', async () => {
       createtime: currentDateTime,
       modifiedtime: currentDateTime,
       ownerid: 6,
+      assign_to: 6,   // ✅ FIXED HERE
+
       venue_address: 'New Street',
-      venue_city: 'NewTown',
+      venue_city: 'London',
       venue_post_code: '123456',
       venue_county: 5,
       venue_country: 1,
-      assign_to: 'Sonam Burbure',
     },
     source: 'web',
     status: '1',
   };
 
-  console.log('Final Venue Payload:', JSON.stringify(payload, null, 2));
+  console.log('📤 Final Venue Payload:', JSON.stringify(payload, null, 2));
 
   // 4️⃣ Create venue
   const venueApi = new VenueApi();
   const response = await venueApi.createVenue(payload);
 
-  console.log('Create venue API response:', response);
+  console.log('✅ Create venue API response:', response);
 
   // 5️⃣ Assertions
   const venue = Array.isArray(response) ? response[0] : response;
@@ -192,5 +198,5 @@ test('API only: login and create Venue with UK place name', async () => {
   expect(venue.venueid).toBeTruthy();
   expect(typeof venue.venueid).toBe('number');
 
-  console.log('Created Venue ID:', venue.venueid);
+  console.log('🎯 Created Venue ID:', venue.venueid);
 });
