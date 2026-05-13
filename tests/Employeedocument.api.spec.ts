@@ -1,29 +1,19 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
+import { test, expect } from '@playwright/test';
+import { EmployeeDocumentsApi } from '../src/api/EmployeeDocumentsApi.js';
 
-import { BASE_API_URL } from '../src/utils/constants.js';
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-test('API only: Create Employee Document', async () => {
+  const employeeDocApi = new EmployeeDocumentsApi(request);
 
-  const apiContext = await request.newContext();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const unique = () => Date.now();
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  console.log('🔐 Using Token:', token);
-
-  const now = new Date();
-
-  const formatDateTime = (d: Date) =>
-    d.toISOString().replace('T', ' ').substring(0, 19);
-
-  // Optional: make name dynamic
-  const docName = `emp_${Date.now()} /Identity Proof`;
+  const docName = `emp_${unique()} /Identity Proof`; // ✅ avoid duplicate
 
   const payload = {
     employeedocument_num: '00000000000',
@@ -33,39 +23,109 @@ test('API only: Create Employee Document', async () => {
       employeedocument_visibility: '815',
       employeedocument_type: 786,
       employeedocument_staus: '792',
-
       ownerid: 18,
-      createtime: formatDateTime(now),
-      modifiedtime: formatDateTime(now),
-
-      assign_to: 'Sonam Burbure' // ⚠️ if error → use 18
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
     },
     source: 'web',
-    status: '1'
+    status: '1',
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await employeeDocApi.createEmployeeDocument(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/employeedocument`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(2000);
+  expect.soft(createRes.employeedocumentid).toBeDefined();
+  expect.soft(createRes.employeedocument_name).toBe(payload.custom.employeedocument_name);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await employeeDocApi.getEmployeeDocument();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(2000);
+  expect.soft(getRes.employeedocumentid).toBe(createRes.employeedocumentid);
+  expect.soft(getRes.employeedocument_name).toBe(payload.custom.employeedocument_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await employeeDocApi.searchEmployeeDocuments(
+    `employeedocument_name=${payload.custom.employeedocument_name}`
   );
 
-  const responseBody = await response.json();
+  console.log("🔍 SEARCH Response:", searchRes);
 
-  if (!response.ok()) {
-    throw new Error(`❌ Employee Document API failed: ${JSON.stringify(responseBody)}`);
-  }
+  const data = searchRes?.data || [];
 
-  console.log('✅ Create Employee Document Response:', responseBody);
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  expect(responseBody).toBeTruthy();
+  const found = data.some((item: any) =>
+    item.employeedocument_name === payload.custom.employeedocument_name
+  );
 
+  expect.soft(found).toBeTruthy();
+
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.employeedocument_name = `emp_${unique()} /Passport`; // ✅ unique updated name
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await employeeDocApi.updateEmployeeDocument(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(2000);
+
+  const searchAfterPut = await employeeDocApi.searchEmployeeDocuments(
+    `employeedocument_name=${payload.custom.employeedocument_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.employeedocument_name === payload.custom.employeedocument_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      employeedocument_name: `emp_${unique()} /Driving Licence`
+    }
+  };
+
+  const dummyRes = await employeeDocApi.createEmployeeDocument(dummyPayload);
+  const deleteId = dummyRes.employeedocumentid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await employeeDocApi.deleteEmployeeDocumentById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await employeeDocApi.getEmployeeDocumentById(deleteId);
+
+  expect.soft(deletedCheck?.employeedocumentid).toBeUndefined();
 });
