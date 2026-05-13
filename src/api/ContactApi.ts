@@ -1,78 +1,155 @@
 import { getAuthToken, getTenantPath, getLogonAs } from '../utils/tokenStore.js';
 import { BASE_API_URL } from '../utils/constants.js';
-import type { APIRequestContext } from '@playwright/test';
+import type { APIRequestContext, APIResponse } from '@playwright/test';
 
 export class ContactApi {
   private apiContext: APIRequestContext;
- private contactId: number | null = null;
+  private contactId: number | null = null;
+
   constructor(apiContext: APIRequestContext) {
     this.apiContext = apiContext;
   }
 
-  async Contact(payload: any) {
+  private getHeaders() {
     const token = getAuthToken();
     const tenantPath = getTenantPath();
     const logonAs = getLogonAs();
 
     if (!token || !tenantPath || !logonAs) {
-      throw new Error('Missing authentication token, tenant path, or logonAs value.');
+      throw new Error('❌ Missing authentication token / tenant / logonAs');
     }
+
+    return {
+      tenantPath,
+      logonAs,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'x-automate-secret': process.env.AUTOMATE_SECRET!
+      }
+    };
+  }
+
+  private async handleResponse(response: APIResponse, apiName: string) {
+    const status = response.status();
+    let body: any;
+
+    try {
+      body = await response.json();
+    } catch {
+      body = await response.text();
+    }
+
+    console.log(`📡 ${apiName} Status: ${status}`);
+    console.log(`📩 ${apiName} Response:`, body);
+
+    if (!response.ok()) {
+      throw new Error(`❌ ${apiName} failed: ${status}\n${JSON.stringify(body)}`);
+    }
+
+    return Array.isArray(body) ? body[0] : body;
+  }
+
+  private async handleResponseSafe(response: APIResponse) {
+    let body: any;
+
+    try {
+      body = await response.json();
+    } catch {
+      body = await response.text();
+    }
+
+    return {
+      ok: response.ok(),
+      status: response.status(),
+      body
+    };
+  }
+
+  async createContact(payload: any) {
+    const { tenantPath, logonAs, headers } = this.getHeaders();
 
     const response = await this.apiContext.post(
       `${BASE_API_URL}/${tenantPath}/api/${logonAs}/contact`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        
-          'x-automate-secret': process.env.AUTOMATE_SECRET!
-        },
-        data: payload,
-        }
+      { headers, data: payload }
     );
 
-  const responseBody = await response.json();
+    const data = await this.handleResponse(response, 'CREATE');
 
-    if (!response.ok()) {
-      throw new Error(
-        `❌ contact API failed: ${response.status()} \n${JSON.stringify(responseBody)}`
-      );
-    }
-const data=Array.isArray(responseBody)?responseBody[0]:responseBody;
-  this.contactId = data?.contactid || data?.contact_id || data?.id;
-
-    console.log("🆔 Stored contactId:", this.contactId);
+    this.contactId = data?.contactid || data?.contact_id || data?.id;
+    console.log('🆔 Stored contactId:', this.contactId);
 
     return data;
   }
 
- async getAccount() {
+  async getContact() {
     if (!this.contactId) {
       throw new Error('❌ contactId not found. Call createContact first.');
     }
-  const token =getAuthToken();
-  const tenantPath=getTenantPath();
-  const LogonAs=getLogonAs();
-  
-  const response =await this.apiContext.get(
-    `${BASE_API_URL}/${tenantPath}/api/${LogonAs}/contact/${this.contactId}`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      
-      
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-    }}
-  );
-  const responseBody = await response.json();
 
-if (!response.ok()) {
-  throw new Error(
-    `❌ GET contact API failed: ${response.status()} \n${JSON.stringify(responseBody)}`
-  );
+    return this.getContactById(this.contactId);
+  }
+
+  async getContactById(id: number) {
+    const { tenantPath, logonAs, headers } = this.getHeaders();
+
+    const response = await this.apiContext.get(
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/contacts/${id}`,
+      { headers }
+    );
+
+    const result = await this.handleResponseSafe(response);
+
+    if (!result.ok) {
+      return result.body;
+    }
+
+    return Array.isArray(result.body) ? result.body[0] : result.body;
+  }
+
+  async updateContact(payload: any) {
+    if (!this.contactId) {
+      throw new Error('❌ contactId not found. Call createContact first.');
+    }
+
+    const { tenantPath, logonAs, headers } = this.getHeaders();
+
+    const response = await this.apiContext.put(
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/contacts/${this.contactId}`,
+      { headers, data: payload }
+    );
+
+    return await this.handleResponse(response, 'UPDATE');
+  }
+
+  async deleteContactById(id: number) {
+    const { tenantPath, logonAs, headers } = this.getHeaders();
+
+    const response = await this.apiContext.delete(
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/contacts/${id}`,
+      { headers }
+    );
+
+    return await this.handleResponse(response, 'DELETE');
+  }
+
+  async searchContacts(filter: string, ipp: number = 25, page: number = 1) {
+    const { tenantPath, logonAs, headers } = this.getHeaders();
+
+    const response = await this.apiContext.get(
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/contact`,
+      {
+        headers,
+        params: { ipp, page, filter }
+      }
+    );
+
+    const result = await this.handleResponseSafe(response);
+
+    if (!result.ok) {
+      throw new Error(`❌ SEARCH failed: ${result.status}\n${JSON.stringify(result.body)}`);
+    }
+
+    return result.body;
+  }
 }
-const data=Array.isArray(responseBody)?responseBody[0]:responseBody;
-return data;
-
- }}
