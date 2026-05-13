@@ -1,106 +1,157 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
+import { test, expect } from '@playwright/test';
+import { EmployeeApi } from '../src/api/EmployeeApi.js';
 
-import { BASE_API_URL } from '../src/utils/constants.js';
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-/* -------- UK DATA -------- */
+  const employeeApi = new EmployeeApi(request);
 
-const UK_FIRST_NAMES = [
-  'James', 'Oliver', 'Harry', 'George', 'Noah',
-  'Jack', 'Leo', 'Charlie', 'Jacob', 'Alfie',
-  'Emily', 'Amelia', 'Olivia', 'Isla', 'Ava'
-];
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const unique = () => Date.now();
 
-const UK_LAST_NAMES = [
-  'Smith', 'Johnson', 'Williams', 'Brown', 'Taylor',
-  'Wilson', 'Davies', 'Evans', 'Thomas', 'Roberts'
-];
+  // =======================
+  // 🇬🇧 UK Name Generator
+  // =======================
+  function generateUKEmployeeName(): { first: string; last: string } {
+    const firstNames = ["Oliver","George","Harry","Jack","Noah","Olivia","Amelia","Isla","Ava","Emily"];
+    const lastNames = ["Smith","Jones","Taylor","Brown","Williams","Wilson","Johnson","Davies","Patel","Wright"];
 
-function getRandom(arr: string[]) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+    const first = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const last = lastNames[Math.floor(Math.random() * lastNames.length)];
 
-function generateUKMobile() {
-  return `07${Math.floor(100000000 + Math.random() * 900000000)}`;
-}
+    return { first, last };
+  }
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
-}
+  function generateUKMobile(): string {
+    return `07${Math.floor(100000000 + Math.random() * 900000000)}`;
+  }
 
-test('API only: Create Employee (UK Random Data)', async () => {
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  const apiContext = await request.newContext();
-
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
-
-  console.log('🔐 Using Token:', token);
-
-  const now = new Date();
-
-  const firstName = getRandom(UK_FIRST_NAMES);
-  const lastName = getRandom(UK_LAST_NAMES);
-  const mobile = generateUKMobile();
-  const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${Date.now()}@mail.com`;
+  const emp = generateUKEmployeeName();
+  const email = `${emp.first.toLowerCase()}.${emp.last.toLowerCase()}${unique()}@mailinator.com`;
 
   const payload = {
     employee_num: '00000000000',
     custom: {
-      employee_firstname: firstName,
-      employee_lastname: lastName,
-
+      employee_firstname: emp.first,
+      employee_lastname: emp.last,
       employee_eff_start_date: '2026-04-02',
       employee_eff_end_date: '2026-04-03',
-
       employee_address: 'South Street, London',
-      employee_Mobile: mobile,
+      employee_Mobile: generateUKMobile(),
       employee_email: email,
-
-      employee_active_status: 576,
-      related_staffcosting: 18,
-      employee_step: '7',
-      employee_type: 581,
-      employee_payment_type: 583,
-      related_employee: 4,
-
       ownerid: 18,
-      createtime: formatDateTime(now),
-      modifiedtime: formatDateTime(now),
-
-      assign_to: 'Sonam Burbure' // ⚠️ if error → use 18
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
     },
     source: 'web',
-    status: '1'
+    status: '1',
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await employeeApi.createEmployee(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/employee`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(2000);
+  expect.soft(createRes.employeeid).toBeDefined();
+  expect.soft(createRes.employee_email).toBe(payload.custom.employee_email);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await employeeApi.getEmployee();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(2000);
+  expect.soft(getRes.employeeid).toBe(createRes.employeeid);
+  expect.soft(getRes.employee_email).toBe(payload.custom.employee_email);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await employeeApi.searchEmployees(
+    `employee_email=${payload.custom.employee_email}`
   );
 
-  const responseBody = await response.json();
+  console.log("🔍 SEARCH Response:", searchRes);
 
-  if (!response.ok()) {
-    throw new Error(`❌ Employee API failed: ${JSON.stringify(responseBody)}`);
-  }
+  const data = searchRes?.data || [];
 
-  console.log('✅ Create Employee Response:', responseBody);
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  expect(responseBody).toBeTruthy();
+  const found = data.some((item: any) =>
+    item.employeeid === createRes.employeeid
+  );
 
+  expect.soft(found).toBeTruthy();
+
+  // =======================
+  // ✅ PUT
+  // =======================
+  const updatedEmp = generateUKEmployeeName();
+  payload.custom.employee_firstname = updatedEmp.first;
+  payload.custom.employee_lastname = updatedEmp.last;
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await employeeApi.updateEmployee(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(2000);
+
+  const searchAfterPut = await employeeApi.searchEmployees(`employee_email=${payload.custom.employee_email}`);
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.employeeid === createRes.employeeid &&
+    item.employee_firstname === updatedEmp.first &&
+    item.employee_lastname === updatedEmp.last
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyEmp = generateUKEmployeeName();
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      employee_firstname: dummyEmp.first,
+      employee_lastname: dummyEmp.last,
+      employee_email: `${dummyEmp.first.toLowerCase()}.${dummyEmp.last.toLowerCase()}${unique()}@mailinator.com`,
+      employee_Mobile: generateUKMobile()
+    }
+  };
+
+  const dummyRes = await employeeApi.createEmployee(dummyPayload);
+  const deleteId = dummyRes.employeeid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await employeeApi.deleteEmployeeById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await employeeApi.getEmployeeById(deleteId);
+
+  expect.soft(deletedCheck?.employeeid).toBeUndefined();
 });
