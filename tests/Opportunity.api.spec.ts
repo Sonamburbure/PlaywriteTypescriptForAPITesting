@@ -1,128 +1,141 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
+import { test, expect } from '@playwright/test';
+import { OpportunityApi } from '../src/api/OpportunityApi.js';
 
-import { BASE_API_URL, BASE_UI_URL } from '../src/utils/constants.js';
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-test('API + UI: Opportunity creation vs UI validation', async ({ page }) => {
+  const opportunityApi = new OpportunityApi(request);
 
-  let opportunityId: number | null = null;
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const unique = () => Date.now();
 
-  /* ================= API PART ================= */
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  try {
-    const apiContext = await request.newContext();
+  const oppName = `Auto Opp ${unique()}`; // ✅ avoid duplicate
 
-    const token = getAuthToken();
-    const tenant = getTenantPath();
-    const logonAs = getLogonAs();
+  const payload = {
+    opportunity_num: '00000000000',
+    source: 'none',
+    status: '1',
+    custom: {
+      opportunity_name: oppName,
+      close_date: '2026-04-01',
+      sales_stage: 132,
+      opportunity_type: 123,
+      set_up_required: 722,
+      lead_source: 141,
+      opportunity_payment_terms: 202,
+      ownerid: 18,
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+      opportunity_country: 1,
+      copy_costs: 1,
+      expected_sales: '0',
+      expected_profit: '0',
+      operational_expenses: '0',
+      payroll_costs: '0',
+      net_profit: '0',
+      rate_conversion: '1.00',
+      other_costs: '0'
+    },
+    recurring: null,
+    lines: { linegroup: {} },
+    createevent: false
+  };
 
-    console.log('🔐 Using Token:', token);
+  const createRes = await opportunityApi.createOpportunity(payload);
 
-    const dateTime = new Date()
-      .toISOString()
-      .replace('T', ' ')
-      .substring(0, 19);
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
 
-    const payload = {
-      opportunity_num: '00000000000',
-      source: 'none',
-      status: '1',
-      custom: {
-        opportunity_name: `Auto Opp ${Date.now()}`,
-        close_date: '2026-04-01',
-        sales_stage: 132,
-        opportunity_type: 123,
-        set_up_required: 722,
-        lead_source: 141,
-        opportunity_payment_terms: 202,
-        ownerid: 18,
-        assign_to: 'Sonam Burbure',   // ✅ fixed
-        createtime: dateTime,
-        modifiedtime: dateTime,
-        opportunity_country: 1,
-        copy_costs: 1,
-        expected_sales: '0',
-        expected_profit: '0',
-        operational_expenses: '0',
-        payroll_costs: '0',
-        net_profit: '0',
-        rate_conversion: '1.00',
-        other_costs: '0'
-      },
-      recurring: null,
-      lines: { linegroup: {} },
-      createevent: false
-    };
+  expect.soft(postTime).toBeLessThan(2000);
+  expect.soft(createRes.opportunityid).toBeDefined();
+  expect.soft(createRes.opportunity_name).toBe(payload.custom.opportunity_name);
 
-    console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
 
-    const response = await apiContext.post(
-      `${BASE_API_URL}/${tenant}/api/${logonAs}/opportunity`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'x-automate-secret': process.env.AUTOMATE_SECRET!
-        },
-        data: payload
-      }
-    );
+  const getRes = await opportunityApi.getOpportunity();
 
-    const body = await response.json();
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
 
-    console.log('✅ API Response:', body);
+  expect.soft(getTime).toBeLessThan(2000);
+  expect.soft(getRes.opportunityid).toBe(createRes.opportunityid);
+  expect.soft(getRes.opportunity_name).toBe(payload.custom.opportunity_name);
 
-    if (!response.ok()) {
-      console.log('❌ API failed but continuing...');
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await opportunityApi.searchOpportunities(
+    `opportunity_name=${payload.custom.opportunity_name}`
+  );
+
+  console.log("🔍 SEARCH Response:", searchRes);
+
+  const data = searchRes?.data || [];
+
+  expect.soft(data.length).toBeGreaterThan(0);
+
+  const found = data.some((item: any) =>
+    item.opportunity_name === payload.custom.opportunity_name
+  );
+
+  expect.soft(found).toBeTruthy();
+
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.opportunity_name = `Auto Opp ${unique()}`; // ✅ unique updated name
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await opportunityApi.updateOpportunity(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(2000);
+
+  const searchAfterPut = await opportunityApi.searchOpportunities(`opportunity_name=${payload.custom.opportunity_name}`);
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) => item.opportunity_name === payload.custom.opportunity_name);
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      opportunity_name: `Auto Opp ${unique()}`
     }
+  };
 
-    if (body.error_msg) {
-      console.log('❌ API validation error:', body.error_msg);
-    }
+  const dummyRes = await opportunityApi.createOpportunity(dummyPayload);
+  const deleteId = dummyRes.opportunityid;
 
-    const opportunity = Array.isArray(body) ? body[0] : body;
+  const startDelete = Date.now();
 
-    opportunityId = opportunity?.opportunityid;
+  const deleteRes = await opportunityApi.deleteOpportunityById(deleteId);
 
-    console.log('🎯 Created Opportunity ID:', opportunityId);
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
 
-  } catch (err) {
-    console.log('❌ API exception but continuing to UI:', err);
-  }
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
 
-  /* ================= UI PART ================= */
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await opportunityApi.getOpportunityById(deleteId);
 
-  console.log('🚀 Starting UI validation');
-
-  await page.goto(BASE_UI_URL);
-
-  // 👉 adjust if your route is different
-  await page.goto(`${BASE_UI_URL}/#/opportunity`);
-
-  // safer click
-  await page.locator('text=Create').first().click();
-
-  await page.waitForTimeout(3000);
-
-  const currentUrl = page.url();
-  console.log('🌐 Current URL after Create:', currentUrl);
-
-  // 📸 Screenshot always
-  await page.screenshot({ path: 'ui-result.png', fullPage: true });
-
-  /* ================= VALIDATION ================= */
-
-  if (currentUrl.includes('api')) {
-    console.log('❌ BUG: Redirected to API URL (blank page issue)');
-  } else {
-    console.log('✅ UI navigation looks correct');
-  }
-
-  // optional assertion (soft check)
-  expect(currentUrl).toBeTruthy();
-
+  expect.soft(deletedCheck?.opportunityid).toBeUndefined();
 });
