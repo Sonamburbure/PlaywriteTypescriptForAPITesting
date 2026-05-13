@@ -73,7 +73,7 @@ test('API only: Create Staff Type', async () => {
     custom: {
       stafftype_name: staffName,
 
-      stafftype_category: 589,
+      stafftype_category: 588,
       stafftype_subcategory: "",
       stafftype_status: 596,
 

@@ -8,6 +8,7 @@ await page.goto('https://web.automateevents.com/#/home/event/detail/136');
 
   const createEventPage = new CreateEventPage(page);
   await createEventPage.createEvent();
+  
 
 const response = await page.waitForResponse(
     (resp: Response) =>

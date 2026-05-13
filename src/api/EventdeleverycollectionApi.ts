@@ -3,12 +3,12 @@ import{BASE_API_URL}from '../utils/constants.js';
 import type { APIRequestContext } from 'playwright/test';
 
 
-export class EventChecklistdetailApi {
+export class EventdeliveryCollectionApi{ 
     private apiContext:APIRequestContext;
 constructor(apiContext:APIRequestContext){
     this.apiContext=apiContext;
 }
-async createEventChecklist(payload:any){
+async createEventdeliveryCollection(payload:any){
     const token=getAuthToken();
     const tenantPath=getTenantPath();
     const logonAs=getLogonAs();
@@ -34,7 +34,7 @@ const response = await this.apiContext.post(
 
     if (!response.ok()) {
       throw new Error(
-        `❌ eventchecklistresponse API failed: ${response.status()} \n${JSON.stringify(responseBody)}`
+        `❌ eventdeliverycollection API failed: ${response.status()} \n${JSON.stringify(responseBody)}`
       );
     }
 

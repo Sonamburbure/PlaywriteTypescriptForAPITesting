@@ -1,0 +1,54 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "https://web.automateevents.com",
+      "localStorage": [
+        {
+          "name": "i18nextLng",
+          "value": "en"
+        },
+        {
+          "name": "debugMode",
+          "value": "0"
+        },
+        {
+          "name": "token",
+          "value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiYzNjMzU2MjBmN2UyOGM2YTFlMjJkMGZkYmZjYWQzNGE5MGQ3NmE3ZDYwMWYyNjkxYzAzYjE3ZjExZmU0YjEyNDc5NzRhOTY2Y2VlOTI3NDkiLCJpYXQiOjE3NzcwMzkzMzYuMTU3OTM4LCJuYmYiOjE3NzcwMzkzMzYuMTU3OTQxLCJleHAiOjE3NzcxMjU3MzYuMTEyNDM3LCJzdWIiOiI2Iiwic2NvcGVzIjpbXX0.ELOz0r-yZ0DstxBKMXn9P2in24cRe-vFVjfWZnVcUNhqPTXc5pvsS2GCWLR054GZfxvPWnRXyOPBWGWtvU0dqkFe-LLdLJ471lL-1vEdL_MFRT4zEg1Ly3SxDvYOi-g9I1Q94WJKPc70TLK9oTbsouyNad2mlXNNjTsl1ZKYB_oEZS0KS3vtJ0YM8AnoPFcFELIhhw9LIUz8pxEfLkJtMyzvfjgWIKENgqXjDW0H17dgqctLDv2PETfinYu5_OzI1FZZFPjoHOPOmxIVVvsgnXZdB9TSbKPdcRY_jGnCEO7FrmzA0g_QVfsP0n_RyzQ7Bq49uWcOPBm5OBhNCzSaY1cT4rHA8wYkR8PVfvmgw8BDUgAltfQVNlkd3Qfrdk3Dau-dNZxmM4QE1MJcimDwJyR6ShtFTW3XLRQMhmUV_515OGpeEUi_vJfnzRlImpsjg2E9o-xwswRiWDVMd2qzrceUvet7xvui0Wra9KKIWB2BODHJpI0BBTvJ_G26TmZdk3EJDWAX3a9NdW_FBBBylvpBv-m1vAJrjfIgwT4n8f0baKQ0v_XC0DYr0QWkoSnstBVnYF9nngTCUzQhA8Z-Y9TesSAwmV9n3jLKzwRIlGwopJd9QAvbeRGT-wl-1EEOXX9Z_seFHF0GDiqLcLnaA60lpeMvoZ-Z0scx2e4ph8Y"
+        },
+        {
+          "name": "tenant_cname",
+          "value": "eyJpdiI6IjIwcWE2WnZBVWVIclA3Umt5aUppVGc9PSIsInZhbHVlIjoiUTJrMFVmdnRnOWlZdUhiTXhwTCtKR3Z5aXF4TE4rZkdldVdhS0JERXA5OD0iLCJtYWMiOiI0ZWNkNzI5ZjQxMDU5OTc5YzlmMmUzMDA2YjNhN2EzMjdlN2NjZmUyNWZmMjlkZjIyMmY0YzhhN2YyZWQ5MTUxIiwidGFnIjoiIn0="
+        },
+        {
+          "name": "companyId",
+          "value": "1770472525"
+        },
+        {
+          "name": "T_CONFIG",
+          "value": "{\"clanguage\":\"sonamburbure\",\"company_id\":1770472525,\"token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiYzNjMzU2MjBmN2UyOGM2YTFlMjJkMGZkYmZjYWQzNGE5MGQ3NmE3ZDYwMWYyNjkxYzAzYjE3ZjExZmU0YjEyNDc5NzRhOTY2Y2VlOTI3NDkiLCJpYXQiOjE3NzcwMzkzMzYuMTU3OTM4LCJuYmYiOjE3NzcwMzkzMzYuMTU3OTQxLCJleHAiOjE3NzcxMjU3MzYuMTEyNDM3LCJzdWIiOiI2Iiwic2NvcGVzIjpbXX0.ELOz0r-yZ0DstxBKMXn9P2in24cRe-vFVjfWZnVcUNhqPTXc5pvsS2GCWLR054GZfxvPWnRXyOPBWGWtvU0dqkFe-LLdLJ471lL-1vEdL_MFRT4zEg1Ly3SxDvYOi-g9I1Q94WJKPc70TLK9oTbsouyNad2mlXNNjTsl1ZKYB_oEZS0KS3vtJ0YM8AnoPFcFELIhhw9LIUz8pxEfLkJtMyzvfjgWIKENgqXjDW0H17dgqctLDv2PETfinYu5_OzI1FZZFPjoHOPOmxIVVvsgnXZdB9TSbKPdcRY_jGnCEO7FrmzA0g_QVfsP0n_RyzQ7Bq49uWcOPBm5OBhNCzSaY1cT4rHA8wYkR8PVfvmgw8BDUgAltfQVNlkd3Qfrdk3Dau-dNZxmM4QE1MJcimDwJyR6ShtFTW3XLRQMhmUV_515OGpeEUi_vJfnzRlImpsjg2E9o-xwswRiWDVMd2qzrceUvet7xvui0Wra9KKIWB2BODHJpI0BBTvJ_G26TmZdk3EJDWAX3a9NdW_FBBBylvpBv-m1vAJrjfIgwT4n8f0baKQ0v_XC0DYr0QWkoSnstBVnYF9nngTCUzQhA8Z-Y9TesSAwmV9n3jLKzwRIlGwopJd9QAvbeRGT-wl-1EEOXX9Z_seFHF0GDiqLcLnaA60lpeMvoZ-Z0scx2e4ph8Y\"}"
+        },
+        {
+          "name": "user",
+          "value": "{\"token_type\":\"Bearer\",\"expires_in\":86400,\"token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiYzNjMzU2MjBmN2UyOGM2YTFlMjJkMGZkYmZjYWQzNGE5MGQ3NmE3ZDYwMWYyNjkxYzAzYjE3ZjExZmU0YjEyNDc5NzRhOTY2Y2VlOTI3NDkiLCJpYXQiOjE3NzcwMzkzMzYuMTU3OTM4LCJuYmYiOjE3NzcwMzkzMzYuMTU3OTQxLCJleHAiOjE3NzcxMjU3MzYuMTEyNDM3LCJzdWIiOiI2Iiwic2NvcGVzIjpbXX0.ELOz0r-yZ0DstxBKMXn9P2in24cRe-vFVjfWZnVcUNhqPTXc5pvsS2GCWLR054GZfxvPWnRXyOPBWGWtvU0dqkFe-LLdLJ471lL-1vEdL_MFRT4zEg1Ly3SxDvYOi-g9I1Q94WJKPc70TLK9oTbsouyNad2mlXNNjTsl1ZKYB_oEZS0KS3vtJ0YM8AnoPFcFELIhhw9LIUz8pxEfLkJtMyzvfjgWIKENgqXjDW0H17dgqctLDv2PETfinYu5_OzI1FZZFPjoHOPOmxIVVvsgnXZdB9TSbKPdcRY_jGnCEO7FrmzA0g_QVfsP0n_RyzQ7Bq49uWcOPBm5OBhNCzSaY1cT4rHA8wYkR8PVfvmgw8BDUgAltfQVNlkd3Qfrdk3Dau-dNZxmM4QE1MJcimDwJyR6ShtFTW3XLRQMhmUV_515OGpeEUi_vJfnzRlImpsjg2E9o-xwswRiWDVMd2qzrceUvet7xvui0Wra9KKIWB2BODHJpI0BBTvJ_G26TmZdk3EJDWAX3a9NdW_FBBBylvpBv-m1vAJrjfIgwT4n8f0baKQ0v_XC0DYr0QWkoSnstBVnYF9nngTCUzQhA8Z-Y9TesSAwmV9n3jLKzwRIlGwopJd9QAvbeRGT-wl-1EEOXX9Z_seFHF0GDiqLcLnaA60lpeMvoZ-Z0scx2e4ph8Y\",\"refresh_token\":\"def50200ba799ed7634e3e63d63acf074282f02bdd4bb6b482479398b24c98eb6b4e4c03a488395001ac667a781a67b384d336838b849899817da7a23a2f8f053f8eba2b7d98f6b8c4457c89d1782307e59bbdde9cd10fc35ea919c3500c7ebe72fdb6a7cdce4e14fef07a35a9228253fe644ba4ff352cb77ad4f326e1f1ae40d51185e05a19788f34c9239e7863b00e6a04cd4a85d34afd877866c11927250c03c4586d133c144b83d46dd6a27e7c3394aa99c16911145bded2804a40c1e5d10355a7774edb49564fd85b7c40fb0e4cc362d6328faa3c4e238b938f7d24180f57b81a6f67941596b3718b0567cd03ae1739d3572edb24698cc6b6f5b2f64dbc6725a30b1153549f890ca41d23c428743eeace6760da22b6f4f4f8fd262f7624085944393265971fb088703e9debcec148de2989023f48ec5e6671ad8d67f589a9778ba22986d436c4cabad3db254147a206bb19fe87fb838829c504ca75dec90c\",\"company_id\":1770472525,\"tenant_cname\":\"eyJpdiI6IjIwcWE2WnZBVWVIclA3Umt5aUppVGc9PSIsInZhbHVlIjoiUTJrMFVmdnRnOWlZdUhiTXhwTCtKR3Z5aXF4TE4rZkdldVdhS0JERXA5OD0iLCJtYWMiOiI0ZWNkNzI5ZjQxMDU5OTc5YzlmMmUzMDA2YjNhN2EzMjdlN2NjZmUyNWZmMjlkZjIyMmY0YzhhN2YyZWQ5MTUxIiwidGFnIjoiIn0=\",\"logon_as\":\"21232f297a57a5a743894a0e4a801fc3\",\"timezone\":\"Europe/London\",\"date_format\":\"Y-m-d\",\"display_date_format\":\"Y-m-d\",\"time_format\":\"H:i\",\"thousand_separator\":\",\",\"decimal_places\":\"2\",\"decimal_separator\":\".\",\"company_currency\":\"1\",\"product_delivery_location\":651,\"equipment_delivery_location\":648,\"dashboard_url\":\"\",\"color\":\"\",\"ipp\":49,\"companyId\":1770472525,\"email\":\"\",\"password\":\"\"}"
+        },
+        {
+          "name": "vLOG",
+          "value": "{\"view_name\":\"index\",\"user_ip\":\"116.75.28.120\",\"company_id\":1770472525,\"tenant_cname\":\"eyJpdiI6IjIwcWE2WnZBVWVIclA3Umt5aUppVGc9PSIsInZhbHVlIjoiUTJrMFVmdnRnOWlZdUhiTXhwTCtKR3Z5aXF4TE4rZkdldVdhS0JERXA5OD0iLCJtYWMiOiI0ZWNkNzI5ZjQxMDU5OTc5YzlmMmUzMDA2YjNhN2EzMjdlN2NjZmUyNWZmMjlkZjIyMmY0YzhhN2YyZWQ5MTUxIiwidGFnIjoiIn0=\",\"token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiYzNjMzU2MjBmN2UyOGM2YTFlMjJkMGZkYmZjYWQzNGE5MGQ3NmE3ZDYwMWYyNjkxYzAzYjE3ZjExZmU0YjEyNDc5NzRhOTY2Y2VlOTI3NDkiLCJpYXQiOjE3NzcwMzkzMzYuMTU3OTM4LCJuYmYiOjE3NzcwMzkzMzYuMTU3OTQxLCJleHAiOjE3NzcxMjU3MzYuMTEyNDM3LCJzdWIiOiI2Iiwic2NvcGVzIjpbXX0.ELOz0r-yZ0DstxBKMXn9P2in24cRe-vFVjfWZnVcUNhqPTXc5pvsS2GCWLR054GZfxvPWnRXyOPBWGWtvU0dqkFe-LLdLJ471lL-1vEdL_MFRT4zEg1Ly3SxDvYOi-g9I1Q94WJKPc70TLK9oTbsouyNad2mlXNNjTsl1ZKYB_oEZS0KS3vtJ0YM8AnoPFcFELIhhw9LIUz8pxEfLkJtMyzvfjgWIKENgqXjDW0H17dgqctLDv2PETfinYu5_OzI1FZZFPjoHOPOmxIVVvsgnXZdB9TSbKPdcRY_jGnCEO7FrmzA0g_QVfsP0n_RyzQ7Bq49uWcOPBm5OBhNCzSaY1cT4rHA8wYkR8PVfvmgw8BDUgAltfQVNlkd3Qfrdk3Dau-dNZxmM4QE1MJcimDwJyR6ShtFTW3XLRQMhmUV_515OGpeEUi_vJfnzRlImpsjg2E9o-xwswRiWDVMd2qzrceUvet7xvui0Wra9KKIWB2BODHJpI0BBTvJ_G26TmZdk3EJDWAX3a9NdW_FBBBylvpBv-m1vAJrjfIgwT4n8f0baKQ0v_XC0DYr0QWkoSnstBVnYF9nngTCUzQhA8Z-Y9TesSAwmV9n3jLKzwRIlGwopJd9QAvbeRGT-wl-1EEOXX9Z_seFHF0GDiqLcLnaA60lpeMvoZ-Z0scx2e4ph8Y\",\"user_id\":6}"
+        },
+        {
+          "name": "IPP_CONF",
+          "value": "{\"module\":\"\",\"relation\":\"\",\"comment\":\"\",\"event\":\"\",\"default\":49}"
+        },
+        {
+          "name": "userid",
+          "value": "6"
+        },
+        {
+          "name": "username",
+          "value": "Sonam Burbure"
+        }
+      ]
+    }
+  ]
+}

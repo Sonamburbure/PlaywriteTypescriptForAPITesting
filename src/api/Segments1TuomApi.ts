@@ -19,7 +19,7 @@ export class AccountApi {
     }
 
     const response = await this.apiContext.post(
-      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/customer`,
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/segment1tuom`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
