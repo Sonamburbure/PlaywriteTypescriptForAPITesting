@@ -1,68 +1,137 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
+import { test, expect } from '@playwright/test';
+import { EmployeeAvailabilityApi } from '../src/api/EmployeeAvailibilityApi.js';
 
-import { BASE_API_URL } from '../src/utils/constants.js';
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-test('API only: Create Employee Availability', async () => {
+  const employeeAvailApi = new EmployeeAvailabilityApi(request);
 
-  const apiContext = await request.newContext();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const unique = () => Date.now();
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
-
-  console.log('🔐 Using Token:', token);
-
-  const now = new Date();
-
-  const formatDateTime = (d: Date) =>
-    d.toISOString().replace('T', ' ').substring(0, 19);
-
-  const payload = {
-    employeeavailability_num: "00000000000",
-    custom: {
-      employeeavailability_name: `emp_${Date.now()} /Confirmed`,
-      related_event: 254,
-      related_employee: 10,
-      employeeavailability_date: "2026-04-04",
-      employeeavailability_staus: "706",
-
-      ownerid: 18,
-      createtime: formatDateTime(now),
-      modifiedtime: formatDateTime(now),
-
-      assign_to: "Sonam Burbure" // ⚠️ if error → use 18
-    },
-    source: "web",
-    status: "1"
+  // generates a unique future date offset by unique ms to avoid duplicate entries
+  const uniqueDate = () => {
+    const d = new Date(Date.now() + Math.floor(Math.random() * 365 * 24 * 60 * 60 * 1000));
+    return d.toISOString().split('T')[0];
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/employeeavailability`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const availName = `emp_${unique()} /Confirmed`; // ✅ avoid duplicate
+
+  const payload = {
+    employeeavailability_num: '00000000000',
+    custom: {
+      employeeavailability_name: availName,
+      related_event: 254,
+      related_employee: 10,
+      employeeavailability_date: uniqueDate(),
+      employeeavailability_staus: '706',
+      ownerid: 18,
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    },
+    source: 'web',
+    status: '1',
+  };
+
+  const createRes = await employeeAvailApi.createEmployeeAvailability(payload);
+
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(2000);
+  expect.soft(createRes.employeeavailabilityid).toBeDefined();
+  expect.soft(createRes.employeeavailability_name).toBe(payload.custom.employeeavailability_name);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await employeeAvailApi.getEmployeeAvailability();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(2000);
+  expect.soft(getRes.employeeavailabilityid).toBe(createRes.employeeavailabilityid);
+  expect.soft(getRes.employeeavailability_name).toBe(payload.custom.employeeavailability_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await employeeAvailApi.searchEmployeeAvailabilities(
+    `employeeavailability_name=${payload.custom.employeeavailability_name}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  if (!response.ok()) {
-    throw new Error(`❌ Employee Availability API failed: ${JSON.stringify(responseBody)}`);
-  }
+  const data = searchRes?.data || [];
 
-  console.log('✅ Create Employee Availability Response:', responseBody);
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  expect(responseBody).toBeTruthy();
+  const found = data.some((item: any) =>
+    item.employeeavailability_name === payload.custom.employeeavailability_name
+  );
 
+  expect.soft(found).toBeTruthy();
+
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.employeeavailability_name = `emp_${unique()} /Unavailable`; // ✅ unique updated name
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await employeeAvailApi.updateEmployeeAvailability(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(2000);
+
+  const searchAfterPut = await employeeAvailApi.searchEmployeeAvailabilities(
+    `employeeavailability_name=${payload.custom.employeeavailability_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.employeeavailability_name === payload.custom.employeeavailability_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      employeeavailability_name: `emp_${unique()} /On Leave`
+    }
+  };
+
+  const dummyRes = await employeeAvailApi.createEmployeeAvailability(dummyPayload);
+  const deleteId = dummyRes.employeeavailabilityid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await employeeAvailApi.deleteEmployeeAvailabilityById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await employeeAvailApi.getEmployeeAvailabilityById(deleteId);
+
+  expect.soft(deletedCheck?.employeeavailabilityid).toBeUndefined();
 });
