@@ -1,63 +1,124 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
+import { test, expect } from '@playwright/test';
+import { CommentsApi } from '../src/api/commentsApi.js';
 
-import { BASE_API_URL } from '../src/utils/constants.js';
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-test('API only: Create Comment', async () => {
+  const commentsApi = new CommentsApi(request);
 
-  const apiContext = await request.newContext();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const unique = () => Date.now();
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  console.log('🔐 Using Token:', token);
+  const commentText = `Test comment ${unique()}`; // ✅ avoid duplicate
 
   const payload = {
     comment_num: '00000000000',
     custom: {
-      comment: `hiinpx${Date.now()}`,   // dynamic
+      comment: commentText,
       module_comment: 'hello',
       ownerid: 18,
-      assign_to: 'Sonam Burbure'   // ✅ FIXED
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
     },
     source: 'web',
-    status: '1'
+    status: '1',
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await commentsApi.createComment(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/comment`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(2000);
+  expect.soft(createRes.commentid).toBeDefined();
+  expect.soft(createRes.comment).toBe(payload.custom.comment);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await commentsApi.getComment();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(2000);
+  expect.soft(getRes.commentid).toBe(createRes.commentid);
+  expect.soft(getRes.comment).toBe(payload.custom.comment);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await commentsApi.searchComments(
+    `comment=${payload.custom.comment}`
   );
 
-  const responseBody = await response.json();
+  console.log("🔍 SEARCH Response:", searchRes);
 
-  console.log('✅ Create Comment Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  // ❌ Fail if API call fails
-  if (!response.ok()) {
-    throw new Error(`❌ Comment API failed: ${JSON.stringify(responseBody)}`);
-  }
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  // 🔥 Correct validation (handles undefined case)
-  if (responseBody.error_msg) {
-    throw new Error(`❌ Validation Error: ${JSON.stringify(responseBody.error_msg)}`);
-  }
+  const found = data.some((item: any) =>
+    item.comment === payload.custom.comment
+  );
 
-  // ✅ Basic validation
-  expect(responseBody).toBeTruthy();
+  expect.soft(found).toBeTruthy();
 
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.comment = `Updated comment ${unique()}`; // ✅ unique updated text
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await commentsApi.updateComment(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(2000);
+
+  const searchAfterPut = await commentsApi.searchComments(`comment=${payload.custom.comment}`);
+  const dataAfterPut = searchAfterPut?.data || [];
+  const commentUpdated = dataAfterPut.some((item: any) => item.comment === payload.custom.comment);
+  expect.soft(commentUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      comment: `Dummy comment ${unique()}`
+    }
+  };
+
+  const dummyRes = await commentsApi.createComment(dummyPayload);
+  const deleteId = dummyRes.commentid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await commentsApi.deleteCommentById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await commentsApi.getCommentById(deleteId);
+
+  expect.soft(deletedCheck?.commentid).toBeUndefined();
 });
