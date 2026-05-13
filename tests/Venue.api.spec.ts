@@ -1,178 +1,43 @@
-import { test, expect, request, APIRequestContext } from '@playwright/test';
-import {
-  setAuthToken,
-  setTenantPath,
-  setLogonAs,
-  getAuthToken,
-  getTenantPath,
-  getLogonAs,
-} from '../src/utils/tokenStore.js';
-import { BASE_API_URL, EMAIL, PASSWORD } from '../src/utils/constants.js';
+import { test, expect } from '@playwright/test';
+import { VenueApi } from '../src/api/VenueApi.js';
 
-/* ---------------- UK PLACE DATA ---------------- */
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-const UK_PLACES = [
-  'London', 'Manchester', 'Leeds', 'Liverpool',
-  'Bristol', 'Nottingham', 'Sheffield', 'Leicester', 'Coventry',
-  'Oxford', 'Cambridge', 'York', 'Bath', 'Reading',
-  'Milton Keynes', 'Luton', 'Watford', 'Slough', 'Woking'
-];
+  const venueApi = new VenueApi(request);
 
-/* ---------------- UTILS ---------------- */
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const unique = () => Date.now();
 
-function getCurrentDateTime() {
-  return new Date().toISOString().replace('T', ' ').substring(0, 19);
-}
+  // =======================
+  // 🏙️ UK Venue Name Generator
+  // =======================
+  function generateUKVenueName(): string {
+    const places = [
+      'London', 'Manchester', 'Leeds', 'Liverpool', 'Bristol',
+      'Nottingham', 'Sheffield', 'Leicester', 'Oxford', 'Cambridge'
+    ];
 
-function normalize(value: string) {
-  return value.toLowerCase().replace(/\s+/g, '');
-}
-
-function generateUKVenueName() {
-  const place = UK_PLACES[Math.floor(Math.random() * UK_PLACES.length)];
-  const date = getCurrentDateTime().split(' ')[0];
-  return `${place} Venue ${date}`;
-}
-
-/* ---------------- AUTH API ---------------- */
-
-export class AuthApi {
-  private apiContext?: APIRequestContext;
-
-  async init() {
-    if (!this.apiContext) {
-      this.apiContext = await request.newContext();
-    }
+    const place = places[Math.floor(Math.random() * places.length)];
+    return `${place} Venue`;
   }
 
-  async fetchTenantOptions() {
-    await this.init();
-    const response = await this.apiContext!.get(
-      `${BASE_API_URL}/api/tenant-options`,
-      { headers: { 'Content-Type': 'application/json' } }
-    );
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-    expect(response.ok()).toBeTruthy();
-    const body = await response.json();
-    return body.data || [];
-  }
-
-  async login(email: string, password: string, tenantName: string) {
-    await this.init();
-    const response = await this.apiContext!.post(
-      `${BASE_API_URL}/api/login`,
-      {
-        headers: { 'Content-Type': 'application/json' },
-        data: { email, password, tenant_name: tenantName },
-      }
-    );
-
-    expect(response.ok()).toBeTruthy();
-    const body = await response.json();
-
-    expect(body.token).toBeTruthy();
-    expect(body.tenant_cname).toBeTruthy();
-    expect(body.logon_as).toBeTruthy();
-
-    return body;
-  }
-}
-
-/* ---------------- VENUE API ---------------- */
-
-export class VenueApi {
-  private apiContext?: APIRequestContext;
-
-  async init() {
-    if (!this.apiContext) {
-      this.apiContext = await request.newContext();
-    }
-  }
-
-  async createVenue(payload: any) {
-    await this.init();
-
-    const token = getAuthToken();
-    const tenantPath = getTenantPath();
-    const logonAs = getLogonAs();
-
-    expect(token).toBeTruthy();
-    expect(tenantPath).toBeTruthy();
-    expect(logonAs).toBeTruthy();
-
-    const response = await this.apiContext!.post(
-      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/venue`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        data: payload,
-      }
-    );
-
-    const body = await response.json();
-
-    expect(response.ok()).toBeTruthy();
-
-    // 🔥 FIX: Proper error handling
-    if (body.error_msg) {
-      throw new Error(`❌ Venue API Validation Failed: ${JSON.stringify(body.error_msg)}`);
-    }
-
-    return body;
-  }
-}
-
-/* ---------------- TEST ---------------- */
-
-test('API only: login and create Venue with UK place name', async () => {
-  const authApi = new AuthApi();
-
-  // 1️⃣ Fetch tenant
-  const tenants = await authApi.fetchTenantOptions();
-
-  const tenant = tenants.find(
-    (t: any) => normalize(t.optionlabel) === normalize('Dream Events')
-  );
-
-  if (!tenant) {
-    throw new Error(
-      `Tenant "Dream Events" not found. Available: ${tenants
-        .map((t: any) => t.optionlabel)
-        .join(', ')}`
-    );
-  }
-
-  // 2️⃣ Login
-  const loginResponse = await authApi.login(
-    EMAIL,
-    PASSWORD,
-    tenant.optionvalue
-  );
-
-  setAuthToken(loginResponse.token);
-  setTenantPath(loginResponse.tenant_cname);
-  setLogonAs(loginResponse.logon_as);
-
-  expect(getAuthToken()).toBeTruthy();
-  expect(getTenantPath()).toBeTruthy();
-
-  // 3️⃣ Payload
-  const currentDateTime = getCurrentDateTime();
-  const venueName = generateUKVenueName();
+  const venueName = `${generateUKVenueName()} ${unique()}`; // ✅ avoid duplicate
 
   const payload = {
     venue_num: '00000000000',
     custom: {
       venue_name: venueName,
       venue_phone: '1234456789',
-      venue_email: 'abc@gmail.com',
-      createtime: currentDateTime,
-      modifiedtime: currentDateTime,
-      ownerid: 6,
-      assign_to: 6,   // ✅ FIXED HERE
-
+      venue_email: `venue${unique()}@mailinator.com`,
+      ownerid: 18,
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
       venue_address: 'New Street',
       venue_city: 'London',
       venue_post_code: '123456',
@@ -183,20 +48,97 @@ test('API only: login and create Venue with UK place name', async () => {
     status: '1',
   };
 
-  console.log('📤 Final Venue Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await venueApi.createVenue(payload);
 
-  // 4️⃣ Create venue
-  const venueApi = new VenueApi();
-  const response = await venueApi.createVenue(payload);
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
 
-  console.log('✅ Create venue API response:', response);
+  expect.soft(postTime).toBeLessThan(2000);
+  expect.soft(createRes.venueid).toBeDefined();
+  expect.soft(createRes.venue_name).toBe(payload.custom.venue_name);
 
-  // 5️⃣ Assertions
-  const venue = Array.isArray(response) ? response[0] : response;
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
 
-  expect(venue).toBeTruthy();
-  expect(venue.venueid).toBeTruthy();
-  expect(typeof venue.venueid).toBe('number');
+  const getRes = await venueApi.getVenue();
 
-  console.log('🎯 Created Venue ID:', venue.venueid);
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(2000);
+  expect.soft(getRes.venueid).toBe(createRes.venueid);
+  expect.soft(getRes.venue_name).toBe(payload.custom.venue_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await venueApi.searchVenues(
+    `venue_name=${payload.custom.venue_name}`
+  );
+
+  console.log("🔍 SEARCH Response:", searchRes);
+
+  const data = searchRes?.data || [];
+
+  expect.soft(data.length).toBeGreaterThan(0);
+
+  const found = data.some((item: any) =>
+    item.venue_name === payload.custom.venue_name
+  );
+
+  expect.soft(found).toBeTruthy();
+
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.venue_name = `${generateUKVenueName()} ${unique()}`; // ✅ unique updated name
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await venueApi.updateVenue(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(2000);
+
+  const searchAfterPut = await venueApi.searchVenues(`venue_name=${payload.custom.venue_name}`);
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) => item.venue_name === payload.custom.venue_name);
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      venue_name: `${generateUKVenueName()} ${unique()}`,
+      venue_email: `venue${unique()}@mailinator.com`
+    }
+  };
+
+  const dummyRes = await venueApi.createVenue(dummyPayload);
+  const deleteId = dummyRes.venueid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await venueApi.deleteVenueById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await venueApi.getVenueById(deleteId);
+
+  expect.soft(deletedCheck?.venueid).toBeUndefined();
 });
