@@ -1,95 +1,144 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
+import { test, expect } from '@playwright/test';
+import { SupplierApi } from '../src/api/SupplierApi.js';
 
-import { BASE_API_URL } from '../src/utils/constants.js';
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-/* 🔹 UK Names */
-const UK_FIRST_NAMES = [
-  'James', 'Oliver', 'Harry', 'George', 'Noah',
-  'Jack', 'Leo', 'Charlie', 'Jacob', 'Alfie',
-  'Emily', 'Amelia', 'Olivia', 'Isla', 'Ava'
-];
+  const supplierApi = new SupplierApi(request);
 
-const UK_LAST_NAMES = [
-  'Smith', 'Johnson', 'Williams', 'Brown', 'Taylor',
-  'Wilson', 'Davies', 'Evans', 'Thomas', 'Roberts'
-];
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const unique = () => Date.now();
 
-function getRandom(arr: any[]) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+  // =======================
+  // 🇬🇧 UK Name Generator
+  // =======================
+  function generateUKSupplierName(): string {
+    const firstNames = ["Oliver","George","Harry","Jack","Noah","Olivia","Amelia","Isla","Ava","Emily"];
+    const lastNames = ["Smith","Jones","Taylor","Brown","Williams","Wilson","Johnson","Davies","Patel","Wright"];
 
-test('API only: Create Contact', async () => {
+    const first = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const last = lastNames[Math.floor(Math.random() * lastNames.length)];
 
-  const apiContext = await request.newContext();
+    return `${first} ${last}`;
+  }
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  console.log('🔐 Using Token:', token);
-
-  const firstName = getRandom(UK_FIRST_NAMES);
-  const lastName = getRandom(UK_LAST_NAMES);
-
-  const dateTime = new Date()
-    .toISOString()
-    .replace('T', ' ')
-    .substring(0, 19);
+  const name = `${generateUKSupplierName()} ${unique()}`; // ✅ avoid duplicate
 
   const payload = {
-    contact_num: '00000000000',
+    supplier_num: '00000000000',
     custom: {
-      firstname: firstName,
-      lastname: lastName,
-      contact_name: `${firstName} ${lastName}`,
-
+      supplier_name: name,
+      supplier_status: 193,
+      supplier_category: 195,
+      supplier_rating: 197,
       ownerid: 18,
-      assign_to: 'Sonam Burbure',   // ✅ fixed
-
-      contact_phone: '07123456789',
-      contact_email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@mail.com`,
-
-      contact_address: '10 Baker Street',
-      contact_city: 'London',
-      contact_post_code: 'AB12 3CD',
-      contact_country: 1,
-
-      createtime: dateTime,
-      modifiedtime: dateTime,
+      createtime: now(),
+      modifiedtime: now(),
+      supplier_address: 'abc',
+      supplier_city: 'birmingham',
+      supplier_post_code: '1234556',
+      supplier_county: 2,
+      supplier_country: 1,
+      assign_to: 'Sonam Burbure'
     },
     source: 'web',
     status: '1',
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await supplierApi.createSupplier(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/contact`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(2000);
+  expect.soft(createRes.supplierid).toBeDefined();
+  expect.soft(createRes.supplier_name).toBe(payload.custom.supplier_name);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await supplierApi.getSupplier();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(2000);
+  expect.soft(getRes.supplierid).toBe(createRes.supplierid);
+  expect.soft(getRes.supplier_name).toBe(payload.custom.supplier_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await supplierApi.searchSuppliers(
+    `supplier_name=${payload.custom.supplier_name}`
   );
 
-  const responseBody = await response.json();
+  console.log("🔍 SEARCH Response:", searchRes);
 
-  console.log('✅ Create Contact Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  if (!response.ok()) {
-    throw new Error(`❌ Contact API failed: ${JSON.stringify(responseBody)}`);
-  }
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  // 🔥 important validation
-  expect(responseBody.error_msg).toEqual({});
+  const found = data.some((item: any) =>
+    item.supplier_name === payload.custom.supplier_name
+  );
 
-  expect(responseBody).toBeTruthy();
+  expect.soft(found).toBeTruthy();
+
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.supplier_name = generateUKSupplierName(); // ✅ no number
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await supplierApi.updateSupplier(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(2000);
+
+  const searchAfterPut = await supplierApi.searchSuppliers(`supplier_name=${payload.custom.supplier_name}`);
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) => item.supplier_name === payload.custom.supplier_name);
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      supplier_name: `${generateUKSupplierName()} ${unique()}`
+    }
+  };
+
+  const dummyRes = await supplierApi.createSupplier(dummyPayload);
+  const deleteId = dummyRes.supplierid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await supplierApi.deleteSupplierById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await supplierApi.getSupplierById(deleteId);
+
+  expect.soft(deletedCheck?.supplierid).toBeUndefined();
 });
