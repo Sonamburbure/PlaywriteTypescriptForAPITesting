@@ -1,117 +1,153 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
-
-import { BASE_API_URL } from '../src/utils/constants.js';
-
-/* -------- TASK NAME PARTS -------- */
+import { test, expect } from '@playwright/test';
+import { EventTaskApi } from '../src/api/EventTasksApi.js';
 
 const ACTION = [
-  'Prepare',
-  'Arrange',
-  'Verify',
-  'Coordinate',
-  'Finalize'
+  'Prepare', 'Arrange', 'Verify', 'Coordinate', 'Finalize',
+  'Confirm', 'Review', 'Organise', 'Allocate', 'Schedule'
 ];
-
 const AREA = [
-  'Catering',
-  'Guest List',
-  'Venue',
-  'Staff',
-  'Logistics'
+  'Catering', 'Guest List', 'Venue', 'Staff', 'Logistics',
+  'Bar Setup', 'Equipment', 'Transport', 'Security', 'Decor'
 ];
-
 const CONTEXT = [
-  'Setup',
-  'Arrangement',
-  'Planning',
-  'Execution',
-  'Checklist'
+  'Setup', 'Arrangement', 'Planning', 'Execution', 'Checklist',
+  'Brief', 'Handover', 'Inspection', 'Deployment', 'Review'
 ];
-
-/* -------- UTILS -------- */
 
 function getRandom(arr: string[]) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
-}
-
-// 🔥 Logical Task Name (NO number)
 function generateTaskName() {
   return `${getRandom(ACTION)} ${getRandom(AREA)} ${getRandom(CONTEXT)}`;
 }
 
-test('API only: Create Event Task', async () => {
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-  const apiContext = await request.newContext();
+  const eventTaskApi = new EventTaskApi(request);
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  const now = new Date();
-  const dateTime = formatDateTime(now);
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
   const taskName = generateTaskName();
 
   const payload = {
-    eventtask_num: "00000000000",
+    eventtask_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
       eventtask_name: taskName,
-
       related_event: 254,
       eventtask_task_category: 640,
-      eventtask_task_desciption: "Description",
+      eventtask_task_desciption: 'Description',
       eventtask_priority: 654,
-      eventtask_status: "681",
-      eventtask_duedate: "2026-04-30",
-
-      assign_to: "Sonam Burbure",
+      eventtask_status: '681',
+      eventtask_duedate: '2026-04-30',
       ownerid: 18,
-      createtime: dateTime,
-      modifiedtime: dateTime
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await eventTaskApi.createEventTask(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/eventtask`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.eventtaskid).toBeDefined();
+  expect.soft(createRes.eventtask_name).toBe(payload.custom.eventtask_name);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await eventTaskApi.getEventTask();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.eventtaskid).toBe(createRes.eventtaskid);
+  expect.soft(getRes.eventtask_name).toBe(payload.custom.eventtask_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await eventTaskApi.searchEventTasks(
+    `eventtask_name=${payload.custom.eventtask_name}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  console.log('📩 Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  if (!response.ok()) {
-    throw new Error(`❌ Event Task API failed: ${JSON.stringify(responseBody)}`);
-  }
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  console.log('✅ Create Event Task Response:', responseBody);
+  const found = data.some((item: any) =>
+    item.eventtask_name === payload.custom.eventtask_name
+  );
 
-  // ✅ Basic validation
-  expect(responseBody).toBeTruthy();
+  expect.soft(found).toBeTruthy();
 
-  // ✅ Optional validation
-  if (responseBody?.data?.eventtask_name) {
-    expect(responseBody.data.eventtask_name).toContain(taskName);
-  }
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.eventtask_name = generateTaskName();
+  payload.custom.modifiedtime = now();
 
+  const startPut = Date.now();
+
+  await eventTaskApi.updateEventTask(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(3000);
+
+  const searchAfterPut = await eventTaskApi.searchEventTasks(
+    `eventtask_name=${payload.custom.eventtask_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.eventtask_name === payload.custom.eventtask_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      eventtask_name: generateTaskName(),
+    }
+  };
+
+  const dummyRes = await eventTaskApi.createEventTask(dummyPayload);
+  const deleteId = dummyRes.eventtaskid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await eventTaskApi.deleteEventTaskById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await eventTaskApi.getEventTaskById(deleteId);
+
+  expect.soft(deletedCheck?.eventtaskid).toBeUndefined();
 });
