@@ -1,69 +1,144 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
+import { test, expect } from '@playwright/test';
+import { TaskMasterApi } from '../src/api/TaskMasterApi.js';
 
-import { BASE_API_URL } from '../src/utils/constants.js';
+const TASK_CATEGORIES = [
+  'Venue Setup',
+  'Catering Coordination',
+  'Staff Briefing',
+  'Equipment Deployment',
+  'Guest Management',
+  'Bar Operations',
+  'Safety Compliance',
+  'Transport Logistics',
+  'Decor Arrangement',
+  'Event Closedown'
+];
 
-test('API only: Create Supplier Order Receipt', async () => {
+function getRandom(arr: string[]) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
-  const apiContext = await request.newContext();
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  const taskMasterApi = new TaskMasterApi(request);
 
-  console.log('🔐 Using Token:', token);
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const unique = () => Date.now();
 
-  const now = new Date();
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  const formatDateTime = (d: Date) =>
-    d.toISOString().replace('T', ' ').substring(0, 19);
+  const taskName = `${getRandom(TASK_CATEGORIES)}_${unique()}`;
 
   const payload = {
-    supplierorderreceipt_num: '00000000000',
-    source: 'none',
+    taskmaster_num: '00000000000',
+    source: 'web',
     status: '1',
     custom: {
-      related_supplierorder: 337,
-      supplierorderreceiptwarehouse_multiple_record: 'Saturday',
-      supplierorderreceiptwarehouse_multiple_module: 'warehouse',
+      taskmaster_name: taskName,
       ownerid: 18,
-      createtime: formatDateTime(now),
-      modifiedtime: formatDateTime(now),
-
-      assign_to: 'Sonam Burbure' // ⚠️ if error → use 18
-    },
-    lines: {
-      linegroup: {}
-    },
-    createevent: false
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await taskMasterApi.createTaskMaster(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/supplierorderreceipt`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.taskmasterid).toBeDefined();
+  expect.soft(createRes.taskmaster_name).toBe(payload.custom.taskmaster_name);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await taskMasterApi.getTaskMaster();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.taskmasterid).toBe(createRes.taskmasterid);
+  expect.soft(getRes.taskmaster_name).toBe(payload.custom.taskmaster_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await taskMasterApi.searchTaskMasters(
+    `taskmaster_name=${payload.custom.taskmaster_name}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  if (!response.ok()) {
-    throw new Error(`❌ Supplier Order Receipt API failed: ${JSON.stringify(responseBody)}`);
-  }
+  const data = searchRes?.data || [];
 
-  console.log('✅ Create Supplier Order Receipt Response:', responseBody);
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  expect(responseBody).toBeTruthy();
+  const found = data.some((item: any) =>
+    item.taskmaster_name === payload.custom.taskmaster_name
+  );
 
+  expect.soft(found).toBeTruthy();
+
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.taskmaster_name = `${getRandom(TASK_CATEGORIES)}_${unique()}`;
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await taskMasterApi.updateTaskMaster(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(3000);
+
+  const searchAfterPut = await taskMasterApi.searchTaskMasters(
+    `taskmaster_name=${payload.custom.taskmaster_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.taskmaster_name === payload.custom.taskmaster_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      taskmaster_name: `${getRandom(TASK_CATEGORIES)}_${unique()}`,
+    }
+  };
+
+  const dummyRes = await taskMasterApi.createTaskMaster(dummyPayload);
+  const deleteId = dummyRes.taskmasterid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await taskMasterApi.deleteTaskMasterById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await taskMasterApi.getTaskMasterById(deleteId);
+
+  expect.soft(deletedCheck?.taskmasterid).toBeUndefined();
 });
