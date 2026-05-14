@@ -1,13 +1,5 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
-
-import { BASE_API_URL } from '../src/utils/constants.js';
-
-/* -------- PROFESSIONAL TOPICS -------- */
+import { test, expect } from '@playwright/test';
+import { TrainingContentApi } from '../src/api/TrainingcontentApi.js';
 
 const TOPIC_NAMES = [
   'Health & Safety Guidelines',
@@ -34,67 +26,131 @@ function getRandom(arr: string[]) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
-}
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-test('API only: Create Training Topic', async () => {
+  const trainingContentApi = new TrainingContentApi(request);
 
-  const apiContext = await request.newContext();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const unique = () => Date.now();
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  console.log('🔐 Using Token:', token);
-
-  const now = new Date();
-
-  const topicName = `${getRandom(TOPIC_NAMES)}_${Date.now()}`;
-  const topicDetails = getRandom(TOPIC_DETAILS);
+  const topicName = `${getRandom(TOPIC_NAMES)}_${unique()}`;
 
   const payload = {
-    trainingtopic_num: "00000000000",
+    trainingtopic_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
       trainingtopic_name: topicName,
       related_training: 5,
-
-      trainingtopic_content_type: "829",
-      trainingtopic_content_details: topicDetails,
+      trainingtopic_content_type: '829',
+      trainingtopic_content_details: getRandom(TOPIC_DETAILS),
       trainingtopic_file_type: 806,
-
       ownerid: 18,
-      createtime: formatDateTime(now),
-      modifiedtime: formatDateTime(now),
-
-      assign_to: "Sonam Burbure" // ⚠️ if error → use 18
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await trainingContentApi.createTrainingContent(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/trainingtopic`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.trainingtopicid).toBeDefined();
+  expect.soft(createRes.trainingtopic_name).toBe(payload.custom.trainingtopic_name);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await trainingContentApi.getTrainingContent();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.trainingtopicid).toBe(createRes.trainingtopicid);
+  expect.soft(getRes.trainingtopic_name).toBe(payload.custom.trainingtopic_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await trainingContentApi.searchTrainingContents(
+    `trainingtopic_name=${payload.custom.trainingtopic_name}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  if (!response.ok()) {
-    throw new Error(`❌ Training Topic API failed: ${JSON.stringify(responseBody)}`);
-  }
+  const data = searchRes?.data || [];
 
-  console.log('✅ Create Training Topic Response:', responseBody);
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  expect(responseBody).toBeTruthy();
+  const found = data.some((item: any) =>
+    item.trainingtopic_name === payload.custom.trainingtopic_name
+  );
 
+  expect.soft(found).toBeTruthy();
+
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.trainingtopic_name = `${getRandom(TOPIC_NAMES)}_${unique()}`;
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await trainingContentApi.updateTrainingContent(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(3000);
+
+  const searchAfterPut = await trainingContentApi.searchTrainingContents(
+    `trainingtopic_name=${payload.custom.trainingtopic_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.trainingtopic_name === payload.custom.trainingtopic_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      trainingtopic_name: `${getRandom(TOPIC_NAMES)}_${unique()}`,
+    }
+  };
+
+  const dummyRes = await trainingContentApi.createTrainingContent(dummyPayload);
+  const deleteId = dummyRes.trainingtopicid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await trainingContentApi.deleteTrainingContentById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await trainingContentApi.getTrainingContentById(deleteId);
+
+  expect.soft(deletedCheck?.trainingtopicid).toBeUndefined();
 });
