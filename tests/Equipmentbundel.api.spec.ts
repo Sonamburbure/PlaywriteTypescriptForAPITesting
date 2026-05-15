@@ -1,110 +1,159 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
-
-import { BASE_API_URL } from '../src/utils/constants.js';
-
-/* -------- BUNDLE NAME PARTS -------- */
+import { test, expect } from '@playwright/test';
+import { EquipmentBundleApi } from '../src/api/EquipmentbundelApi.js';
 
 const BUNDLE_PREFIX = [
-  'Premium',
-  'Standard',
-  'Deluxe',
-  'Professional',
-  'Essential'
+  'Premium', 'Standard', 'Deluxe',
+  'Professional', 'Essential'
 ];
 
 const BUNDLE_TYPES = [
-  'Bar Setup',
-  'Cocktail Service Kit',
-  'Event Serving Setup',
-  'Beverage Station Setup',
-  'Mobile Bar Kit'
+  'Bar Setup', 'Cocktail Service Kit', 'Event Serving Setup',
+  'Beverage Station Setup', 'Mobile Bar Kit'
 ];
 
 const BUNDLE_PURPOSE = [
-  'Package',
-  'Bundle',
-  'Setup',
-  'Kit',
-  'Arrangement'
+  'Package', 'Bundle', 'Setup', 'Kit', 'Arrangement'
 ];
 
-/* -------- UTILS -------- */
+const RELATED_EQUIPMENT_IDS = [138, 139, 140, 141, 142];
 
-function getRandom(arr: string[]) {
+function getRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
+function generateBundleName() {
+  return `${getRandom(BUNDLE_PREFIX)} ${getRandom(BUNDLE_TYPES)} ${getRandom(BUNDLE_PURPOSE)}`;
 }
 
-test('API only: Create Equipment Bundle', async () => {
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-  const apiContext = await request.newContext();
+  const equipmentBundleApi = new EquipmentBundleApi(request);
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  console.log('🔐 Using Token:', token);
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  const now = new Date();
-  const dateTime = formatDateTime(now);
-
-  // 🔥 Dynamic bundle name (NO number)
-  const bundleName = `${getRandom(BUNDLE_PREFIX)} ${getRandom(BUNDLE_TYPES)} ${getRandom(BUNDLE_PURPOSE)}`;
+  const bundleName = generateBundleName();
+  const relatedEquipment = getRandom(RELATED_EQUIPMENT_IDS);
 
   const payload = {
-    equipmentbundle_num: "00000000000",
+    equipmentbundle_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
       equipmentbundle_name: bundleName,
-
-      related_equipment: 138, // ⚠️ must exist
-
-      equipmentbundlechildequipment_multiple_record: 138,
-      equipmentbundlechildequipment_multiple_module: "equipment",
-
-      child_product_qty: "1.00",
-
+      related_equipment: relatedEquipment,
+      equipmentbundlechildequipment_multiple_record: relatedEquipment,
+      equipmentbundlechildequipment_multiple_module: 'equipment',
+      child_product_qty: '1.00',
       ownerid: 18,
-      createtime: dateTime,
-      modifiedtime: dateTime,
-
-      assign_to: "Sonam Burbure" // ⚠️ if error → use 18
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await equipmentBundleApi.createEquipmentBundle(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/equipmentbundle`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.equipmentbundleid).toBeDefined();
+  expect.soft(createRes.equipmentbundle_name).toBe(bundleName);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await equipmentBundleApi.getEquipmentBundle();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.equipmentbundleid).toBe(createRes.equipmentbundleid);
+  expect.soft(getRes.equipmentbundle_name).toBe(bundleName);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await equipmentBundleApi.searchEquipmentBundles(
+    `equipmentbundle_name=${bundleName}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  console.log('📩 Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  if (!response.ok()) {
-    throw new Error(`❌ Equipment Bundle API failed: ${JSON.stringify(responseBody)}`);
-  }
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  console.log('✅ Create Equipment Bundle Response:', responseBody);
+  const found = data.some((item: any) =>
+    item.equipmentbundle_name === bundleName
+  );
 
-  expect(responseBody).toBeTruthy();
+  expect.soft(found).toBeTruthy();
 
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.equipmentbundle_name = generateBundleName();
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await equipmentBundleApi.updateEquipmentBundle(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(3000);
+
+  const searchAfterPut = await equipmentBundleApi.searchEquipmentBundles(
+    `equipmentbundle_name=${payload.custom.equipmentbundle_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.equipmentbundle_name === payload.custom.equipmentbundle_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyEquipment = getRandom(RELATED_EQUIPMENT_IDS.filter(id => id !== relatedEquipment));
+
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      equipmentbundle_name: generateBundleName(),
+      related_equipment: dummyEquipment,
+      equipmentbundlechildequipment_multiple_record: dummyEquipment,
+    }
+  };
+
+  const dummyRes = await equipmentBundleApi.createEquipmentBundle(dummyPayload);
+  const deleteId = dummyRes.equipmentbundleid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await equipmentBundleApi.deleteEquipmentBundleById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await equipmentBundleApi.getEquipmentBundleById(deleteId);
+
+  expect.soft(deletedCheck?.equipmentbundleid).toBeUndefined();
 });
