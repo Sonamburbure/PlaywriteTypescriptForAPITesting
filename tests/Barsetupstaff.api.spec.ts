@@ -1,113 +1,182 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
-
-import { BASE_API_URL } from '../src/utils/constants.js';
-
-/* -------- NAME PARTS -------- */
+import { test, expect } from '@playwright/test';
+import { BarsetupstaffApi } from '../src/api/BarsetupstaffingApi.js';
 
 const STAFF_ROLE = [
-  'Bartender',
-  'Serving Staff',
-  'Support Staff',
-  'Event Supervisor',
-  'Bar Manager'
+  'Lead Bartender',
+  'Senior Serving Staff',
+  'Bar Supervisor',
+  'Event Floor Manager',
+  'VIP Service Attendant',
+  'Beverage Specialist',
+  'Cocktail Expert',
+  'Guest Relations Officer',
+  'Banquet Coordinator',
+  'Service Team Lead'
 ];
 
 const SERVICE_TYPE = [
-  'Bar Service',
-  'Guest Service',
-  'Event Execution',
-  'Operational Support',
-  'Service Setup'
+  'Full Bar Service',
+  'Premium Guest Service',
+  'VIP Event Execution',
+  'Banquet Operations',
+  'Reception Management',
+  'Gala Service Support',
+  'Corporate Event Service',
+  'Awards Ceremony Support',
+  'Conference Bar Operations',
+  'Executive Hospitality'
 ];
 
 const EVENT_CONTEXT = [
-  'Wedding',
-  'Corporate Event',
-  'Reception',
-  'Private Party',
-  'Celebration'
+  'Corporate Gala',
+  'Black-Tie Event',
+  'Executive Dinner',
+  'Annual Conference',
+  'Awards Ceremony',
+  'Business Summit',
+  'VIP Reception',
+  'Product Launch',
+  'Charity Gala',
+  'Networking Event'
 ];
-
-/* -------- UTILS -------- */
 
 function getRandom(arr: string[]) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
+function generateStaffName() {
+  return `${getRandom(EVENT_CONTEXT)} ${getRandom(STAFF_ROLE)} ${getRandom(SERVICE_TYPE)}`;
 }
 
-test('API only: Create Bar Setup Staff', async () => {
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-  const apiContext = await request.newContext();
+  const barsetupstaffApi = new BarsetupstaffApi(request);
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  console.log('🔐 Using Token:', token);
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  const now = new Date();
-  const dateTime = formatDateTime(now);
-
-  // 🔥 Only name improved
-  const staffName = `${getRandom(EVENT_CONTEXT)} ${getRandom(STAFF_ROLE)} ${getRandom(SERVICE_TYPE)}`;
+  const staffName = generateStaffName();
 
   const payload = {
-    barsetupstaff_num: "00000000000",
+    barsetupstaff_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
       barsetupstaff_name: staffName,
-
       related_barsetup: 66,
       related_segment1: 409,
       related_segment2: 79,
       related_unitofmeasure: 182,
-      barsetupstaff_consumption_uom: "528",
-      barsetupstaff_fixed_qty: "6",
+      barsetupstaff_consumption_uom: '528',
+      barsetupstaff_fixed_qty: '6',
       barsetupstaff_min: 0,
       barsetupstaff_max: 0,
       barsetupstaff_time_uom: 540,
-
       ownerid: 18,
-      createtime: dateTime,
-      modifiedtime: dateTime,
-
-      assign_to: "Sonam Burbure"
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await barsetupstaffApi.createBarsetupstaff(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/barsetupstaff`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.barsetupstaffid).toBeDefined();
+  expect.soft(createRes.barsetupstaff_name).toBe(payload.custom.barsetupstaff_name);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await barsetupstaffApi.getBarsetupstaff();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.barsetupstaffid).toBe(createRes.barsetupstaffid);
+  expect.soft(getRes.barsetupstaff_name).toBe(payload.custom.barsetupstaff_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await barsetupstaffApi.searchBarsetupstaffs(
+    `barsetupstaff_name=${payload.custom.barsetupstaff_name}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  console.log('📩 Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  if (!response.ok()) {
-    throw new Error(`❌ Bar Setup Staff API failed: ${JSON.stringify(responseBody)}`);
-  }
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  console.log('✅ Create Bar Setup Staff Response:', responseBody);
+  const found = data.some((item: any) =>
+    item.barsetupstaff_name === payload.custom.barsetupstaff_name
+  );
 
-  expect(responseBody).toBeTruthy();
+  expect.soft(found).toBeTruthy();
 
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.barsetupstaff_name = generateStaffName();
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await barsetupstaffApi.updateBarsetupstaff(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(3000);
+
+  const searchAfterPut = await barsetupstaffApi.searchBarsetupstaffs(
+    `barsetupstaff_name=${payload.custom.barsetupstaff_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.barsetupstaff_name === payload.custom.barsetupstaff_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      barsetupstaff_name: generateStaffName(),
+    }
+  };
+
+  const dummyRes = await barsetupstaffApi.createBarsetupstaff(dummyPayload);
+  const deleteId = dummyRes.barsetupstaffid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await barsetupstaffApi.deleteBarsetupstaffById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await barsetupstaffApi.getBarsetupstaffById(deleteId);
+
+  expect.soft(deletedCheck?.barsetupstaffid).toBeUndefined();
 });
