@@ -32,11 +32,11 @@ export default defineConfig({
   projects: [
     {
       name: 'api',
-      testMatch: /.*api.*\.spec\.ts/,
+      testMatch: /.*\.api\.spec\.ts/,
     },
     {
       name: 'ui',
-      testMatch: /.*ui.*\.spec\.ts/,
+      testMatch: /.*\.ui\.spec\.ts/,
 
       use: {
         baseURL: process.env.BASE_UI_URL,
@@ -70,5 +70,5 @@ export default defineConfig({
     }
   ],
 
-  workers: process.env.TEST_TYPE === 'ui' ? 1 : undefined,
+  workers: 1,
 });
