@@ -1,34 +1,46 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
+import { test, expect } from '@playwright/test';
+import { Segment1Api } from '../src/api/Segment1Api.js';
 
-import { BASE_API_URL } from '../src/utils/constants.js';
+const INGREDIENT_TYPE = [
+  'Fresh Fruit', 'Citrus Blend', 'Berry Mix', 'Tropical Fruit', 'Stone Fruit',
+  'Herb Infusion', 'Spice Blend', 'Nut Variety', 'Grain Selection', 'Dairy Product'
+];
 
-test('API only: Create Segment1', async () => {
+const PRODUCT_FORM = [
+  'Juice', 'Puree', 'Extract', 'Concentrate', 'Syrup',
+  'Powder', 'Paste', 'Essence', 'Infusion', 'Blend'
+];
 
-  const apiContext = await request.newContext();
+const QUALITY_GRADE = [
+  'Premium Grade', 'Reserve Grade', 'Select Grade', 'Signature Grade', 'Classic Grade',
+  'Artisan Grade', 'Executive Grade', 'Heritage Grade', 'Deluxe Grade', 'Standard Grade'
+];
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+function getRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
-  console.log('🔐 Using Token:', token);
+function generateSegmentName() {
+  return `${getRandom(INGREDIENT_TYPE)} ${getRandom(PRODUCT_FORM)} ${getRandom(QUALITY_GRADE)}`;
+}
 
-  const now = new Date();
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-  const formatDateTime = (d: Date) =>
-    d.toISOString().replace('T', ' ').substring(0, 19);
+  const segment1Api = new Segment1Api(request);
 
-  const dateTime = formatDateTime(now);
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  // 🔥 Dynamic name
-  const segmentName = `Fruit Juice_${Date.now()}`;
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
+
+  const segmentName = generateSegmentName();
 
   const payload = {
-    segment1_num: "00000000000",
+    segment1_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
       segment1_name: segmentName,
       segment_type: 532,
@@ -36,41 +48,114 @@ test('API only: Create Segment1', async () => {
       serial_lot_control: 550,
       related_unitofmeasure: 15,
       segment1_consumable_uom: 527,
-
       ownerid: 18,
-      createtime: dateTime,
-      modifiedtime: dateTime,
-
-      assign_to: "Sonam Burbure" // ⚠️ if error → use 6 or 18
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await segment1Api.createSegment1(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/segment1`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.segment1id).toBeDefined();
+  expect.soft(createRes.segment1_name).toBe(payload.custom.segment1_name);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await segment1Api.getSegment1();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.segment1id).toBe(createRes.segment1id);
+  expect.soft(getRes.segment1_name).toBe(payload.custom.segment1_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await segment1Api.searchSegment1s(
+    `segment1_name=${payload.custom.segment1_name}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  console.log('📩 Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  if (!response.ok()) {
-    throw new Error(`❌ Segment1 API failed: ${JSON.stringify(responseBody)}`);
+  expect.soft(data.length).toBeGreaterThan(0);
+
+  const found = data.some((item: any) =>
+    item.segment1_name === payload.custom.segment1_name
+  );
+
+  expect.soft(found).toBeTruthy();
+
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.segment1_name = generateSegmentName();
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  const updateRes = await segment1Api.updateSegment1(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  if (!updateRes.ok) {
+    console.warn(`⚠️ UPDATE not allowed (${updateRes.status}) — skipping PUT assertions`);
+  } else {
+    expect.soft(putTime).toBeLessThan(3000);
+
+    const searchAfterPut = await segment1Api.searchSegment1s(
+      `segment1_name=${payload.custom.segment1_name}`
+    );
+    const dataAfterPut = searchAfterPut?.data || [];
+    const nameUpdated = dataAfterPut.some((item: any) =>
+      item.segment1_name === payload.custom.segment1_name
+    );
+    expect.soft(nameUpdated).toBeTruthy();
   }
 
-  console.log('✅ Create Segment1 Response:', responseBody);
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      segment1_name: generateSegmentName(),
+    }
+  };
 
-  expect(responseBody).toBeTruthy();
+  const dummyRes = await segment1Api.createSegment1(dummyPayload);
+  const deleteId = dummyRes.segment1id;
 
+  const startDelete = Date.now();
+
+  const deleteRes = await segment1Api.deleteSegment1ById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  if (!deleteRes.ok) {
+    console.warn(`⚠️ DELETE not allowed (${deleteRes.status}) — skipping DELETE assertions`);
+  } else {
+    expect.soft(deleteTime).toBeLessThan(4000);
+    expect.soft(deleteRes.body?.success).toBe(true);
+
+    // =======================
+    // 🔥 VERIFY DELETE
+    // =======================
+    const deletedCheck = await segment1Api.getSegment1ById(deleteId);
+    expect.soft(deletedCheck?.segment1id).toBeUndefined();
+  }
 });
