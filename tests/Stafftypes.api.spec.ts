@@ -1,38 +1,19 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
-
-import { BASE_API_URL } from '../src/utils/constants.js';
-
-/* -------- STAFF TYPE NAME PARTS -------- */
+import { test, expect } from '@playwright/test';
+import { StaffTypeApi } from '../src/api/StaffTypesApi.js';
 
 const STAFF_PREFIX = [
-  'Senior',
-  'Junior',
-  'Professional',
-  'Certified',
-  'Experienced'
+  'Senior', 'Junior', 'Professional',
+  'Certified', 'Experienced'
 ];
 
 const STAFF_ROLES = [
-  'Bartender',
-  'Service Staff',
-  'Event Supervisor',
-  'Support Staff',
-  'Floor Manager'
+  'Bartender', 'Service Staff', 'Event Supervisor',
+  'Support Staff', 'Floor Manager'
 ];
 
 const STAFF_CATEGORY = [
-  'Count Based',
-  'Hourly',
-  'Event Based',
-  'Shift Based'
+  'Count Based', 'Hourly', 'Event Based', 'Shift Based'
 ];
-
-/* -------- DESCRIPTION -------- */
 
 const STAFF_DESCRIPTIONS = [
   'Responsible for handling assigned duties during events with efficiency and professionalism.',
@@ -42,83 +23,151 @@ const STAFF_DESCRIPTIONS = [
   'Provides reliable service support aligned with operational and customer expectations.'
 ];
 
-/* -------- UTILS -------- */
+const STAFFTYPE_CATEGORY_IDS = [589, 590, 1024, 1025, 1026, 1027, 1028, 1029, 1030];
 
-function getRandom(arr: string[]) {
+const RELATED_SEGMENT1_IDS = [41, 157, 211, 259, 289];
+const RELATED_UOM_IDS = [15, 182, 185, 186, 527];
+
+function getRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
+function generateStaffName() {
+  return `${getRandom(STAFF_PREFIX)} ${getRandom(STAFF_ROLES)} ${getRandom(STAFF_CATEGORY)}`;
 }
 
-test('API only: Create Staff Type', async () => {
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-  const apiContext = await request.newContext();
+  const staffTypeApi = new StaffTypeApi(request);
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  console.log('🔐 Using Token:', token);
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  const now = new Date();
-  const dateTime = formatDateTime(now);
-
-  // 🔥 Dynamic logical name (no random junk)
-  const staffName = `${getRandom(STAFF_PREFIX)} ${getRandom(STAFF_ROLES)} ${getRandom(STAFF_CATEGORY)}`;
+  const staffName = generateStaffName();
+  const relatedSegment1 = getRandom(RELATED_SEGMENT1_IDS);
+  const relatedUom = getRandom(RELATED_UOM_IDS);
+  const staffCategory = getRandom(STAFFTYPE_CATEGORY_IDS);
 
   const payload = {
-    stafftype_num: "00000000000",
+    stafftype_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
       stafftype_name: staffName,
-
-      stafftype_category: 588,
-      stafftype_subcategory: "",
+      stafftype_category: staffCategory,
+      stafftype_subcategory: '',
       stafftype_status: 596,
-
-      related_segment1: 289,
-      related_unitofmeasure: 182,
-
-      stafftype_priority: "first",
-
-      // ✅ Logical description
+      related_segment1: relatedSegment1,
+      related_unitofmeasure: relatedUom,
+      stafftype_priority: 'first',
       stafftype_description: getRandom(STAFF_DESCRIPTIONS),
-
       ownerid: 18,
-      createtime: dateTime,
-      modifiedtime: dateTime,
-
-      assign_to: "Sonam Burbure" // ⚠️ if error → use 18
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await staffTypeApi.createStaffType(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/stafftype`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.stafftypeid).toBeDefined();
+  expect.soft(createRes.stafftype_name).toBe(staffName);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await staffTypeApi.getStaffType();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.stafftypeid).toBe(createRes.stafftypeid);
+  expect.soft(getRes.stafftype_name).toBe(staffName);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await staffTypeApi.searchStaffTypes(
+    `stafftype_name=${staffName}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  console.log('📩 Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  if (!response.ok()) {
-    throw new Error(`❌ Staff Type API failed: ${JSON.stringify(responseBody)}`);
-  }
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  console.log('✅ Create Staff Type Response:', responseBody);
+  const found = data.some((item: any) =>
+    item.stafftype_name === staffName
+  );
 
-  expect(responseBody).toBeTruthy();
+  expect.soft(found).toBeTruthy();
 
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.stafftype_name = generateStaffName();
+  payload.custom.stafftype_description = getRandom(STAFF_DESCRIPTIONS);
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await staffTypeApi.updateStaffType(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(3000);
+
+  const searchAfterPut = await staffTypeApi.searchStaffTypes(
+    `stafftype_name=${payload.custom.stafftype_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.stafftype_name === payload.custom.stafftype_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      stafftype_name: generateStaffName(),
+      related_segment1: getRandom(RELATED_SEGMENT1_IDS.filter(id => id !== relatedSegment1)),
+    }
+  };
+
+  const dummyRes = await staffTypeApi.createStaffType(dummyPayload);
+  const deleteId = dummyRes.stafftypeid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await staffTypeApi.deleteStaffTypeById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await staffTypeApi.getStaffTypeById(deleteId);
+
+  expect.soft(deletedCheck?.stafftypeid).toBeUndefined();
 });
