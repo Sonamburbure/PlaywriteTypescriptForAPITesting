@@ -1,110 +1,181 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
+import { test, expect } from '@playwright/test';
+import { BarsetupproductApi } from '../src/api/BarsetupproductApi.js';
 
-import { BASE_API_URL } from '../src/utils/constants.js';
-
-/* -------- NAME PARTS -------- */
-
-const PRODUCT_TYPE = [
-  'Beverage',
-  'Soft Drink',
-  'Juice',
-  'Mixer',
-  'Energy Drink'
+const PRODUCT_CATEGORY = [
+  'Premium Spirit',
+  'Craft Beer',
+  'Fine Wine',
+  'Signature Cocktail',
+  'Artisan Mixer',
+  'House Beverage',
+  'Classic Spirit',
+  'Reserve Selection',
+  'Seasonal Blend',
+  'Specialty Drink'
 ];
 
 const PRODUCT_USAGE = [
-  'Consumption',
-  'Service',
-  'Stock',
-  'Distribution'
+  'Full-Service Consumption',
+  'Bar Stock Replenishment',
+  'Event Distribution',
+  'Banquet Service',
+  'VIP Service',
+  'Guest Hospitality',
+  'Catering Supply',
+  'Reception Service',
+  'Gala Service',
+  'Conference Supply'
 ];
 
-const CONTEXT = [
-  'Event',
-  'Bar Setup',
-  'Service',
-  'Operational'
+const BAR_CONTEXT = [
+  'Corporate Gala',
+  'Black-Tie Event',
+  'Executive Dinner',
+  'Annual Conference',
+  'Awards Ceremony',
+  'Business Summit',
+  'VIP Reception',
+  'Product Launch',
+  'Charity Gala',
+  'Networking Event'
 ];
-
-/* -------- UTILS -------- */
 
 function getRandom(arr: string[]) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
+function generateProductName() {
+  return `${getRandom(BAR_CONTEXT)} ${getRandom(PRODUCT_CATEGORY)} ${getRandom(PRODUCT_USAGE)}`;
 }
 
-test('API only: Create Bar Setup Product', async () => {
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-  const apiContext = await request.newContext();
+  const barsetupproductApi = new BarsetupproductApi(request);
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  console.log('🔐 Using Token:', token);
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  const now = new Date();
-  const dateTime = formatDateTime(now);
-
-  // 🔥 Only name improved
-  const productName = `${getRandom(CONTEXT)} ${getRandom(PRODUCT_TYPE)} ${getRandom(PRODUCT_USAGE)}`;
+  const productName = generateProductName();
 
   const payload = {
-    barsetupproduct_num: "00000000000",
+    barsetupproduct_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
       barsetupproduct_name: productName,
-
       related_barsetup: 60,
       related_segment1: 275,
       related_segment2: 54,
       related_unitofmeasure: 186,
       barsetupproduct_consumption_uom: 527,
-      barsetupproduct_fixed_qty: "4",
+      barsetupproduct_fixed_qty: '4',
       barsetupproduct_min: 0,
       barsetupproduct_max: 0,
-
       ownerid: 18,
-      createtime: dateTime,
-      modifiedtime: dateTime,
-
-      assign_to: "Sonam Burbure"
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await barsetupproductApi.createBarsetupproduct(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/barsetupproduct`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.barsetupproductid).toBeDefined();
+  expect.soft(createRes.barsetupproduct_name).toBe(payload.custom.barsetupproduct_name);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await barsetupproductApi.getBarsetupproduct();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.barsetupproductid).toBe(createRes.barsetupproductid);
+  expect.soft(getRes.barsetupproduct_name).toBe(payload.custom.barsetupproduct_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await barsetupproductApi.searchBarsetupproducts(
+    `barsetupproduct_name=${payload.custom.barsetupproduct_name}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  console.log('📩 Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  if (!response.ok()) {
-    throw new Error(`❌ Bar Setup Product API failed: ${JSON.stringify(responseBody)}`);
-  }
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  console.log('✅ Create Bar Setup Product Response:', responseBody);
+  const found = data.some((item: any) =>
+    item.barsetupproduct_name === payload.custom.barsetupproduct_name
+  );
 
-  expect(responseBody).toBeTruthy();
+  expect.soft(found).toBeTruthy();
 
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.barsetupproduct_name = generateProductName();
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await barsetupproductApi.updateBarsetupproduct(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(3000);
+
+  const searchAfterPut = await barsetupproductApi.searchBarsetupproducts(
+    `barsetupproduct_name=${payload.custom.barsetupproduct_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.barsetupproduct_name === payload.custom.barsetupproduct_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      barsetupproduct_name: generateProductName(),
+    }
+  };
+
+  const dummyRes = await barsetupproductApi.createBarsetupproduct(dummyPayload);
+  const deleteId = dummyRes.barsetupproductid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await barsetupproductApi.deleteBarsetupproductById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await barsetupproductApi.getBarsetupproductById(deleteId);
+
+  expect.soft(deletedCheck?.barsetupproductid).toBeUndefined();
 });
