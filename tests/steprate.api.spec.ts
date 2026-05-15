@@ -1,30 +1,13 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
+import { test, expect } from '@playwright/test';
+import { StepRateApi } from '../src/api/StepRatesApi.js';
 
-import { BASE_API_URL } from '../src/utils/constants.js';
-
-/* -------- PROFESSIONAL TITLES -------- */
-
-const STEP_RATE_TITLES = [
-  'Standard Hourly Rate',
-  'Weekend Premium Rate',
-  'Holiday Special Rate',
-  'Night Shift Rate',
-  'Overtime Rate',
-  'Event Staff Rate',
-  'Senior Staff Rate',
-  'Temporary Staff Rate',
-  'Peak Hours Rate',
-  'Contractor Rate'
+const RATE_TITLE = [
+  'Standard Hourly Rate', 'Weekend Premium Rate', 'Holiday Special Rate',
+  'Night Shift Rate', 'Overtime Rate', 'Event Staff Rate',
+  'Senior Staff Rate', 'Temporary Staff Rate', 'Peak Hours Rate', 'Contractor Rate'
 ];
 
-/* -------- LOGICAL DESCRIPTIONS -------- */
-
-const STEP_RATE_DESCRIPTIONS = [
+const RATE_DESCRIPTION = [
   'Applicable for standard working hours under normal conditions.',
   'Used for staff working during weekends with additional compensation.',
   'Applicable during public holidays with premium pricing applied.',
@@ -37,73 +20,137 @@ const STEP_RATE_DESCRIPTIONS = [
   'Rate defined for third-party or contract-based staff.'
 ];
 
-function getRandom(arr: string[]) {
+function getRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
+function generateRateName() {
+  return `${getRandom(RATE_TITLE)}`;
 }
 
-test('API only: Create Step Rate', async () => {
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-  const apiContext = await request.newContext();
+  const stepRateApi = new StepRateApi(request);
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  console.log('🔐 Using Token:', token);
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  const now = new Date();
-  const dateTime = formatDateTime(now);
-
-  // 🔥 Dynamic values
-  const stepRateTitle = `${getRandom(STEP_RATE_TITLES)}_${Date.now()}`;
-  const stepRateDescription = getRandom(STEP_RATE_DESCRIPTIONS);
+  const rateName = generateRateName();
 
   const payload = {
-    steprate_num: "00000000000",
+    steprate_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
-      steprate_name: stepRateTitle,
-      steprate_description: stepRateDescription,
-
+      steprate_name: rateName,
+      steprate_description: getRandom(RATE_DESCRIPTION),
       steprate_tuom: 540,
-
       ownerid: 18,
-      createtime: dateTime,
-      modifiedtime: dateTime,
-
-      assign_to: "Sonam Burbure" // ⚠️ if error → use 18
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await stepRateApi.createStepRate(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/steprate`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.steprateid).toBeDefined();
+  expect.soft(createRes.steprate_name).toBe(payload.custom.steprate_name);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await stepRateApi.getStepRate();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.steprateid).toBe(createRes.steprateid);
+  expect.soft(getRes.steprate_name).toBe(payload.custom.steprate_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await stepRateApi.searchStepRates(
+    `steprate_name=${payload.custom.steprate_name}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  console.log('📩 Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  if (!response.ok()) {
-    throw new Error(`❌ Step Rate API failed: ${JSON.stringify(responseBody)}`);
-  }
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  console.log('✅ Create Step Rate Response:', responseBody);
+  const found = data.some((item: any) =>
+    item.steprate_name === payload.custom.steprate_name
+  );
 
-  expect(responseBody).toBeTruthy();
+  expect.soft(found).toBeTruthy();
 
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.steprate_name = generateRateName();
+  payload.custom.steprate_description = getRandom(RATE_DESCRIPTION);
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await stepRateApi.updateStepRate(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(3000);
+
+  const searchAfterPut = await stepRateApi.searchStepRates(
+    `steprate_name=${payload.custom.steprate_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.steprate_name === payload.custom.steprate_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      steprate_name: generateRateName(),
+    }
+  };
+
+  const dummyRes = await stepRateApi.createStepRate(dummyPayload);
+  const deleteId = dummyRes.steprateid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await stepRateApi.deleteStepRateById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await stepRateApi.getStepRateById(deleteId);
+
+  expect.soft(deletedCheck?.steprateid).toBeUndefined();
 });
