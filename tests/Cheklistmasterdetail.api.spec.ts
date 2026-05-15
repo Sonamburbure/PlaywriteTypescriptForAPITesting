@@ -1,13 +1,5 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
-
-import { BASE_API_URL } from '../src/utils/constants.js';
-
-/* -------- QUESTION BANK -------- */
+import { test, expect } from '@playwright/test';
+import { ChecklistMasterDetailApi } from '../src/api/CheklistmasterdetailApi.js';
 
 const CHECKLIST_QUESTIONS = [
   'Is the venue setup completed as per the event requirements?',
@@ -22,8 +14,6 @@ const CHECKLIST_QUESTIONS = [
   'Are backup arrangements available in case of contingencies?'
 ];
 
-/* -------- DROPDOWN VALUES -------- */
-
 const DROPDOWN_OPTIONS = [
   'Yes,No',
   'Completed,Pending',
@@ -31,76 +21,134 @@ const DROPDOWN_OPTIONS = [
   'Available,Not Available'
 ];
 
-/* -------- UTILS -------- */
-
 function getRandom(arr: string[]) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
-}
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-test('API only: Create Checklist Question', async () => {
+  const checklistDetailApi = new ChecklistMasterDetailApi(request);
 
-  const apiContext = await request.newContext();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const unique = () => Date.now();
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  console.log('🔐 Using Token:', token);
-
-  const now = new Date();
-  const dateTime = formatDateTime(now);
-
-  // 🔥 Dynamic logical question
-  const questionName = getRandom(CHECKLIST_QUESTIONS);
+  const questionName = `${getRandom(CHECKLIST_QUESTIONS)}_${unique()}`;
 
   const payload = {
-    checklistmasterquestion_num: "00000000000",
+    checklistmasterquestion_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
       checklistmasterquestion_name: questionName,
-
-      related_checklistmaster: 9, // ⚠️ must exist
-
+      related_checklistmaster: 9,
       checklistmasterquestion_question_type: 803,
       checklistmasterquestion_dropdown_values: getRandom(DROPDOWN_OPTIONS),
-
       ownerid: 18,
-      createtime: dateTime,
-      modifiedtime: dateTime,
-
-      assign_to: "Sonam Burbure"
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await checklistDetailApi.createChecklistMasterDetail(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/checklistmasterquestion`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.checklistmasterquestionid).toBeDefined();
+  expect.soft(createRes.checklistmasterquestion_name).toBe(payload.custom.checklistmasterquestion_name);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await checklistDetailApi.getChecklistMasterDetail();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.checklistmasterquestionid).toBe(createRes.checklistmasterquestionid);
+  expect.soft(getRes.checklistmasterquestion_name).toBe(payload.custom.checklistmasterquestion_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await checklistDetailApi.searchChecklistMasterDetails(
+    `checklistmasterquestion_name=${payload.custom.checklistmasterquestion_name}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  console.log('📩 Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  if (!response.ok()) {
-    throw new Error(`❌ Checklist Question API failed: ${JSON.stringify(responseBody)}`);
-  }
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  console.log('✅ Create Checklist Question Response:', responseBody);
+  const found = data.some((item: any) =>
+    item.checklistmasterquestion_name === payload.custom.checklistmasterquestion_name
+  );
 
-  expect(responseBody).toBeTruthy();
+  expect.soft(found).toBeTruthy();
 
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.checklistmasterquestion_name = `${getRandom(CHECKLIST_QUESTIONS)}_${unique()}`;
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await checklistDetailApi.updateChecklistMasterDetail(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(3000);
+
+  const searchAfterPut = await checklistDetailApi.searchChecklistMasterDetails(
+    `checklistmasterquestion_name=${payload.custom.checklistmasterquestion_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.checklistmasterquestion_name === payload.custom.checklistmasterquestion_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      checklistmasterquestion_name: `${getRandom(CHECKLIST_QUESTIONS)}_${unique()}`,
+    }
+  };
+
+  const dummyRes = await checklistDetailApi.createChecklistMasterDetail(dummyPayload);
+  const deleteId = dummyRes.checklistmasterquestionid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await checklistDetailApi.deleteChecklistMasterDetailById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await checklistDetailApi.getChecklistMasterDetailById(deleteId);
+
+  expect.soft(deletedCheck?.checklistmasterquestionid).toBeUndefined();
 });
