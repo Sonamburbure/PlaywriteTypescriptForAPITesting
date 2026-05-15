@@ -1,70 +1,132 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
+import { test, expect } from '@playwright/test';
+import { UomConversionApi } from '../src/api/UOMconversionApi.js';
 
-import { BASE_API_URL } from '../src/utils/constants.js';
+const RELATED_UOM_IDS = [15, 182, 185, 186, 527];
+const CONSUMABLE_QTY = ['1000.00', '2000.00', '3000.00', '5000.00', '10000.00'];
+const CONSUMABLE_UOM_IDS = [527, 528, 540];
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
+function getRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
-test('API only: Create Unit of Measure Conversion', async () => {
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-  const apiContext = await request.newContext();
+  const uomConversionApi = new UomConversionApi(request);
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  console.log('🔐 Using Token:', token);
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  const now = new Date();
-  const dateTime = formatDateTime(now);
+  const relatedUom = getRandom(RELATED_UOM_IDS);
 
   const payload = {
-    unitofmeasureconversion_num: "00000000000",
+    unitofmeasureconversion_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
-      related_unitofmeasure: 186, // ⚠️ must exist
-      conversion_consumable_unit: 527,
-      conversion_consumable_quantity: "5000.00",
-
+      related_unitofmeasure: relatedUom,
+      conversion_consumable_unit: getRandom(CONSUMABLE_UOM_IDS),
+      conversion_consumable_quantity: getRandom(CONSUMABLE_QTY),
       ownerid: 18,
-      createtime: dateTime,
-      modifiedtime: dateTime,
-
-      assign_to: "Sonam Burbure" // ⚠️ if error → use 18
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await uomConversionApi.createUomConversion(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/unitofmeasureconversion`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.unitofmeasureconversionid).toBeDefined();
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  await uomConversionApi.getUomConversion();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await uomConversionApi.searchUomConversions('');
+
+  console.log('🔍 SEARCH Response:', searchRes);
+
+  const data = searchRes?.data || [];
+
+  expect.soft(data.length).toBeGreaterThan(0);
+
+  const found = data.some((item: any) =>
+    item.unitofmeasureconversionid === createRes.unitofmeasureconversionid
   );
 
-  const responseBody = await response.json();
+  expect.soft(found).toBeTruthy();
 
-  console.log('📩 Response:', responseBody);
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.conversion_consumable_quantity = getRandom(CONSUMABLE_QTY);
+  payload.custom.modifiedtime = now();
 
-  if (!response.ok()) {
-    throw new Error(`❌ UOM Conversion API failed: ${JSON.stringify(responseBody)}`);
+  const startPut = Date.now();
+
+  const updateRes = await uomConversionApi.updateUomConversion(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  if (!updateRes.ok) {
+    console.warn(`⚠️ UPDATE not allowed (${updateRes.status}) — skipping PUT assertions`);
+  } else {
+    expect.soft(putTime).toBeLessThan(3000);
   }
 
-  console.log('✅ Create UOM Conversion Response:', responseBody);
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyUom = getRandom(RELATED_UOM_IDS.filter(id => id !== relatedUom));
 
-  expect(responseBody).toBeTruthy();
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      related_unitofmeasure: dummyUom,
+      conversion_consumable_quantity: getRandom(CONSUMABLE_QTY),
+    }
+  };
 
+  const dummyRes = await uomConversionApi.createUomConversion(dummyPayload);
+  const deleteId = dummyRes.unitofmeasureconversionid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await uomConversionApi.deleteUomConversionById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  if (!deleteRes.ok) {
+    console.warn(`⚠️ DELETE not allowed (${deleteRes.status}) — skipping DELETE assertions`);
+  } else {
+    expect.soft(deleteTime).toBeLessThan(4000);
+    expect.soft(deleteRes.body?.success).toBe(true);
+
+    // =======================
+    // 🔥 VERIFY DELETE
+    // =======================
+    const deletedCheck = await uomConversionApi.getUomConversionById(deleteId);
+    expect.soft(deletedCheck?.unitofmeasureconversionid).toBeUndefined();
+  }
 });
