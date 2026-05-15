@@ -1,13 +1,5 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
-
-import { BASE_API_URL } from '../src/utils/constants.js';
-
-/* -------- NAME PARTS -------- */
+import { test, expect } from '@playwright/test';
+import { ChecklistMasterApi } from '../src/api/CheklistmasterApi.js';
 
 const CHECKLIST_CATEGORY = [
   'Event Preparation',
@@ -28,73 +20,132 @@ const CHECKLIST_TYPE = [
   'Procedure'
 ];
 
-/* -------- UTILS -------- */
-
 function getRandom(arr: string[]) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
-}
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-test('API only: Create Checklist Master', async () => {
+  const checklistMasterApi = new ChecklistMasterApi(request);
 
-  const apiContext = await request.newContext();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const unique = () => Date.now();
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  console.log('🔐 Using Token:', token);
-
-  const now = new Date();
-  const dateTime = formatDateTime(now);
-
-  // 🔥 Clean professional name (no numbers)
-  const checklistName = `${getRandom(CHECKLIST_CATEGORY)} ${getRandom(CHECKLIST_TYPE)}`;
+  const checklistName = `${getRandom(CHECKLIST_CATEGORY)} ${getRandom(CHECKLIST_TYPE)}_${unique()}`;
 
   const payload = {
-    checklistmaster_num: "00000000000",
+    checklistmaster_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
       checklistmaster_name: checklistName,
-
       checklistmaster_type: 800,
-
       ownerid: 18,
-      createtime: dateTime,
-      modifiedtime: dateTime,
-
-      assign_to: "Sonam Burbure"
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await checklistMasterApi.createChecklistMaster(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/checklistmaster`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.checklistmasterid).toBeDefined();
+  expect.soft(createRes.checklistmaster_name).toBe(payload.custom.checklistmaster_name);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await checklistMasterApi.getChecklistMaster();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.checklistmasterid).toBe(createRes.checklistmasterid);
+  expect.soft(getRes.checklistmaster_name).toBe(payload.custom.checklistmaster_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await checklistMasterApi.searchChecklistMasters(
+    `checklistmaster_name=${payload.custom.checklistmaster_name}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  console.log('📩 Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  if (!response.ok()) {
-    throw new Error(`❌ Checklist Master API failed: ${JSON.stringify(responseBody)}`);
-  }
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  console.log('✅ Create Checklist Master Response:', responseBody);
+  const found = data.some((item: any) =>
+    item.checklistmaster_name === payload.custom.checklistmaster_name
+  );
 
-  expect(responseBody).toBeTruthy();
+  expect.soft(found).toBeTruthy();
 
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.checklistmaster_name = `${getRandom(CHECKLIST_CATEGORY)} ${getRandom(CHECKLIST_TYPE)}_${unique()}`;
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await checklistMasterApi.updateChecklistMaster(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(3000);
+
+  const searchAfterPut = await checklistMasterApi.searchChecklistMasters(
+    `checklistmaster_name=${payload.custom.checklistmaster_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.checklistmaster_name === payload.custom.checklistmaster_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      checklistmaster_name: `${getRandom(CHECKLIST_CATEGORY)} ${getRandom(CHECKLIST_TYPE)}_${unique()}`,
+    }
+  };
+
+  const dummyRes = await checklistMasterApi.createChecklistMaster(dummyPayload);
+  const deleteId = dummyRes.checklistmasterid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await checklistMasterApi.deleteChecklistMasterById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await checklistMasterApi.getChecklistMasterById(deleteId);
+
+  expect.soft(deletedCheck?.checklistmasterid).toBeUndefined();
 });
