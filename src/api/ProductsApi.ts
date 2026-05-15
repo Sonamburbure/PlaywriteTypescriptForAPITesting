@@ -1,15 +1,16 @@
 import { getAuthToken, getTenantPath, getLogonAs } from '../utils/tokenStore.js';
 import { BASE_API_URL } from '../utils/constants.js';
-import type { APIRequestContext } from '@playwright/test';
+import type { APIRequestContext, APIResponse } from '@playwright/test';
 
-export class productApi {
+export class ProductApi {
   private apiContext: APIRequestContext;
+  private productid: number | null = null;
 
   constructor(apiContext: APIRequestContext) {
     this.apiContext = apiContext;
   }
 
-  async createProduct(payload: any) {
+  private getHeaders() {
     const token = getAuthToken();
     const tenantPath = getTenantPath();
     const logonAs = getLogonAs();
@@ -18,26 +19,141 @@ export class productApi {
       throw new Error('❌ Missing authentication token / tenant / logonAs');
     }
 
+    return {
+      tenantPath,
+      logonAs,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'x-automate-secret': process.env.AUTOMATE_SECRET!
+      }
+    };
+  }
+
+  private async handleResponse(response: APIResponse, apiName: string) {
+    const status = response.status();
+    let body: any;
+
+    try {
+      body = await response.json();
+    } catch {
+      body = await response.text();
+    }
+
+    console.log(`📡 ${apiName} Status: ${status}`);
+    console.log(`📩 ${apiName} Response:`, body);
+
+    if (!response.ok()) {
+      throw new Error(`❌ ${apiName} failed: ${status}\n${JSON.stringify(body)}`);
+    }
+
+    return Array.isArray(body) ? body[0] : body;
+  }
+
+  private async handleResponseSafe(response: APIResponse) {
+    let body: any;
+
+    try {
+      body = await response.json();
+    } catch {
+      body = await response.text();
+    }
+
+    return {
+      ok: response.ok(),
+      status: response.status(),
+      body
+    };
+  }
+
+  async createProduct(payload: any) {
+    const { tenantPath, logonAs, headers } = this.getHeaders();
+
     const response = await this.apiContext.post(
       `${BASE_API_URL}/${tenantPath}/api/${logonAs}/product`,
+      { headers, data: payload }
+    );
+
+    const data = await this.handleResponse(response, 'CREATE');
+
+    if (data?.error_msg) {
+      throw new Error(`❌ CREATE failed (API error): ${JSON.stringify(data.error_msg)}`);
+    }
+
+    this.productid = data?.productid || data?.product_id || data?.id;
+    console.log('🆔 Stored productid:', this.productid);
+
+    return data;
+  }
+
+  async getProduct() {
+    if (!this.productid) {
+      throw new Error('❌ productid not found. Call createProduct first.');
+    }
+
+    return this.getProductById(this.productid);
+  }
+
+  async getProductById(id: number) {
+    const { tenantPath, logonAs, headers } = this.getHeaders();
+
+    const response = await this.apiContext.get(
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/products/${id}`,
+      { headers }
+    );
+
+    const result = await this.handleResponseSafe(response);
+
+    if (!result.ok) {
+      return result.body;
+    }
+
+    return Array.isArray(result.body) ? result.body[0] : result.body;
+  }
+
+  async updateProduct(payload: any) {
+    if (!this.productid) {
+      throw new Error('❌ productid not found. Call createProduct first.');
+    }
+
+    const { tenantPath, logonAs, headers } = this.getHeaders();
+
+    const response = await this.apiContext.put(
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/products/${this.productid}`,
+      { headers, data: payload }
+    );
+
+    return await this.handleResponse(response, 'UPDATE');
+  }
+
+  async deleteProductById(id: number) {
+    const { tenantPath, logonAs, headers } = this.getHeaders();
+
+    const response = await this.apiContext.delete(
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/products/${id}`,
+      { headers }
+    );
+
+    return await this.handleResponse(response, 'DELETE');
+  }
+
+  async searchProducts(filter: string, ipp: number = 25, page: number = 1) {
+    const { tenantPath, logonAs, headers } = this.getHeaders();
+
+    const response = await this.apiContext.get(
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/product`,
       {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'x-automate-secret': process.env.AUTOMATE_SECRET!  // ✅ IMPORTANT
-        },
-        data: payload,
+        headers,
+        params: { ipp, page, filter }
       }
     );
 
-    const responseBody = await response.json();
+    const result = await this.handleResponseSafe(response);
 
-    if (!response.ok()) {
-      throw new Error(
-        `❌ product API failed: ${response.status()} \n${JSON.stringify(responseBody)}`
-      );
+    if (!result.ok) {
+      throw new Error(`❌ SEARCH failed: ${result.status}\n${JSON.stringify(result.body)}`);
     }
 
-    return responseBody;
+    return result.body;
   }
 }
