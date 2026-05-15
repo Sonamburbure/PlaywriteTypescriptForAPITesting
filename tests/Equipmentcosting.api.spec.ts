@@ -1,131 +1,164 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
-
-import { BASE_API_URL } from '../src/utils/constants.js';
-
-/* -------- EQUIPMENT NAME PARTS -------- */
+import { test, expect } from '@playwright/test';
+import { EquipmentCostingApi } from '../src/api/EquipmentcostingApi.js';
 
 const EQUIPMENT_PREFIX = [
-  'Premium',
-  'Standard',
-  'Heavy Duty',
-  'Compact',
-  'Professional',
-  'Deluxe'
+  'Premium', 'Standard', 'Heavy Duty',
+  'Compact', 'Professional', 'Deluxe'
 ];
 
 const EQUIPMENT_TYPES = [
-  'Bar Counter',
-  'Ice Machine',
-  'Serving Table',
-  'Cocktail Station',
-  'Glass Rack',
-  'Cooling Unit'
+  'Bar Counter', 'Ice Machine', 'Serving Table',
+  'Cocktail Station', 'Glass Rack', 'Cooling Unit'
 ];
 
 const COSTING_TYPES = [
-  'Daily Cost',
-  'Hourly Cost',
-  'Event Cost',
-  'Rental Cost',
-  'Standard Cost'
+  'Daily Cost', 'Hourly Cost', 'Event Cost',
+  'Rental Cost', 'Standard Cost'
 ];
-
-/* -------- DESCRIPTION -------- */
-
-const COSTING_DESCRIPTIONS = [
-  'Standard costing applied for regular equipment usage.',
-  'Optimized costing for event-based equipment deployment.',
-  'Calculated rental cost for short-term equipment usage.',
-  'Hourly costing defined for flexible operational needs.',
-  'Baseline cost maintained for inventory valuation.'
-];
-
-/* -------- COST VALUES -------- */
 
 const COST_VALUES = ['0.00', '1.50', '2.00', '5.00', '10.00'];
 
-/* -------- UTILS -------- */
+const RELATED_EQUIPMENT_IDS = [122, 123, 124, 125, 126];
 
-function getRandom(arr: string[]) {
+function getRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
+function generateCostingName() {
+  return `${getRandom(EQUIPMENT_PREFIX)} ${getRandom(EQUIPMENT_TYPES)} ${getRandom(COSTING_TYPES)}`;
 }
 
-test('API only: Create Equipment Costing', async () => {
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-  const apiContext = await request.newContext();
+  const equipmentCostingApi = new EquipmentCostingApi(request);
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  console.log('🔐 Using Token:', token);
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  const now = new Date();
-  const dateTime = formatDateTime(now);
-
-  // 🔥 Dynamic costing name (LIKE PRODUCT)
-  const costingName = `${getRandom(EQUIPMENT_PREFIX)} ${getRandom(EQUIPMENT_TYPES)} ${getRandom(COSTING_TYPES)}_${Date.now()}`;
-
+  const costingName = generateCostingName();
   const cost = getRandom(COST_VALUES);
+  const relatedEquipment = getRandom(RELATED_EQUIPMENT_IDS);
 
   const payload = {
-    equipmentcosting_num: "00000000000",
+    equipmentcosting_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
       equipmentcosting_name: costingName,
-
-      related_equipment: 122, // ⚠️ must exist
-
+      related_equipment: relatedEquipment,
       equipmentcosting_tuom: 540,
-      equipmentcosting_priority: "first",
-
+      equipmentcosting_priority: 'first',
       equipmentcosting_std_cost_tuom: cost,
       equipmentcosting_avg_cost_tuom: cost,
-
       equipmentcosting_costing_method: 568,
-
       ownerid: 18,
-      createtime: dateTime,
-      modifiedtime: dateTime,
-
-      assign_to: "Sonam Burbure" // ⚠️ if error → use 18
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await equipmentCostingApi.createEquipmentCosting(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/equipmentcosting`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.equipmentcostingid).toBeDefined();
+  expect.soft(createRes.equipmentcosting_name).toBe(costingName);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await equipmentCostingApi.getEquipmentCosting();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.equipmentcostingid).toBe(createRes.equipmentcostingid);
+  expect.soft(getRes.equipmentcosting_name).toBe(costingName);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await equipmentCostingApi.searchEquipmentCostings(
+    `equipmentcosting_name=${costingName}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  console.log('📩 Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  if (!response.ok()) {
-    throw new Error(`❌ Equipment Costing API failed: ${JSON.stringify(responseBody)}`);
-  }
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  console.log('✅ Create Equipment Costing Response:', responseBody);
+  const found = data.some((item: any) =>
+    item.equipmentcosting_name === costingName
+  );
 
-  expect(responseBody).toBeTruthy();
+  expect.soft(found).toBeTruthy();
 
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.equipmentcosting_name = generateCostingName();
+  payload.custom.equipmentcosting_std_cost_tuom = getRandom(COST_VALUES);
+  payload.custom.equipmentcosting_avg_cost_tuom = payload.custom.equipmentcosting_std_cost_tuom;
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await equipmentCostingApi.updateEquipmentCosting(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(3000);
+
+  const searchAfterPut = await equipmentCostingApi.searchEquipmentCostings(
+    `equipmentcosting_name=${payload.custom.equipmentcosting_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.equipmentcosting_name === payload.custom.equipmentcosting_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      equipmentcosting_name: generateCostingName(),
+      related_equipment: getRandom(RELATED_EQUIPMENT_IDS.filter(id => id !== relatedEquipment)),
+    }
+  };
+
+  const dummyRes = await equipmentCostingApi.createEquipmentCosting(dummyPayload);
+  const deleteId = dummyRes.equipmentcostingid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await equipmentCostingApi.deleteEquipmentCostingById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await equipmentCostingApi.getEquipmentCostingById(deleteId);
+
+  expect.soft(deletedCheck?.equipmentcostingid).toBeUndefined();
 });
