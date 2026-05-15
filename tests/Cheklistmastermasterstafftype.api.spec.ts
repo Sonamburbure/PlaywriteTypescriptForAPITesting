@@ -1,13 +1,5 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
-
-import { BASE_API_URL } from '../src/utils/constants.js';
-
-/* -------- NAME PARTS -------- */
+import { test, expect } from '@playwright/test';
+import { ChecklistMasterStaffTypeApi } from '../src/api/CheklistmasterstafftypeApi.js';
 
 const STAFF_TYPE = [
   'Serving Staff',
@@ -33,74 +25,137 @@ const CHECKLIST_TYPE = [
   'Quality Assurance Checklist'
 ];
 
-/* -------- UTILS -------- */
-
 function getRandom(arr: string[]) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
+function generateName() {
+  return `${getRandom(STAFF_TYPE)}/${getRandom(SERVICE_TYPE)}/${getRandom(CHECKLIST_TYPE)}`;
 }
 
-test('API only: Create Event Checklist Staff Type', async () => {
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-  const apiContext = await request.newContext();
+  const checklistStaffTypeApi = new ChecklistMasterStaffTypeApi(request);
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const unique = () => Date.now();
 
-  console.log('🔐 Using Token:', token);
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  const now = new Date();
-  const dateTime = formatDateTime(now);
-
-  // 🔥 Only name improved (same format kept)
-  const checklistName = `${getRandom(STAFF_TYPE)}/${getRandom(SERVICE_TYPE)}/${getRandom(CHECKLIST_TYPE)}`;
+  const staffTypeName = `${generateName()}_${unique()}`;
 
   const payload = {
-    eventcheckliststafftype_num: "00000000000",
+    eventcheckliststafftype_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
-      eventcheckliststafftype_name: checklistName,
-
+      eventcheckliststafftype_name: staffTypeName,
       related_checklistmaster: 9,
       related_stafftype: 68,
-
       ownerid: 18,
-      createtime: dateTime,
-      modifiedtime: dateTime,
-
-      assign_to: "Sonam Burbure"
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await checklistStaffTypeApi.createChecklistStaffType(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/eventcheckliststafftype`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.eventcheckliststafftypeid).toBeDefined();
+  expect.soft(createRes.eventcheckliststafftype_name).toBe(payload.custom.eventcheckliststafftype_name);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await checklistStaffTypeApi.getChecklistStaffType();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.eventcheckliststafftypeid).toBe(createRes.eventcheckliststafftypeid);
+  expect.soft(getRes.eventcheckliststafftype_name).toBe(payload.custom.eventcheckliststafftype_name);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await checklistStaffTypeApi.searchChecklistStaffTypes(
+    `eventcheckliststafftype_name=${payload.custom.eventcheckliststafftype_name}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  console.log('📩 Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  if (!response.ok()) {
-    throw new Error(`❌ Event Checklist Staff Type API failed: ${JSON.stringify(responseBody)}`);
-  }
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  console.log('✅ Create Event Checklist Staff Type Response:', responseBody);
+  const found = data.some((item: any) =>
+    item.eventcheckliststafftype_name === payload.custom.eventcheckliststafftype_name
+  );
 
-  expect(responseBody).toBeTruthy();
+  expect.soft(found).toBeTruthy();
 
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.eventcheckliststafftype_name = `${generateName()}_${unique()}`;
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await checklistStaffTypeApi.updateChecklistStaffType(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(3000);
+
+  const searchAfterPut = await checklistStaffTypeApi.searchChecklistStaffTypes(
+    `eventcheckliststafftype_name=${payload.custom.eventcheckliststafftype_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.eventcheckliststafftype_name === payload.custom.eventcheckliststafftype_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      eventcheckliststafftype_name: `${generateName()}_${unique()}`,
+    }
+  };
+
+  const dummyRes = await checklistStaffTypeApi.createChecklistStaffType(dummyPayload);
+  const deleteId = dummyRes.eventcheckliststafftypeid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await checklistStaffTypeApi.deleteChecklistStaffTypeById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await checklistStaffTypeApi.getChecklistStaffTypeById(deleteId);
+
+  expect.soft(deletedCheck?.eventcheckliststafftypeid).toBeUndefined();
 });
