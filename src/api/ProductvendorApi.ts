@@ -2,9 +2,9 @@ import { getAuthToken, getTenantPath, getLogonAs } from '../utils/tokenStore.js'
 import { BASE_API_URL } from '../utils/constants.js';
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 
-export class EquipmentApi {
+export class ProductVendorApi {
   private apiContext: APIRequestContext;
-  private equipmentid: number | null = null;
+  private productvendorid: number | null = null;
 
   constructor(apiContext: APIRequestContext) {
     this.apiContext = apiContext;
@@ -66,11 +66,11 @@ export class EquipmentApi {
     };
   }
 
-  async createEquipment(payload: any) {
+  async createProductVendor(payload: any) {
     const { tenantPath, logonAs, headers } = this.getHeaders();
 
     const response = await this.apiContext.post(
-      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/equipment`,
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/productvendor`,
       { headers, data: payload }
     );
 
@@ -80,25 +80,25 @@ export class EquipmentApi {
       throw new Error(`❌ CREATE failed (API error): ${JSON.stringify(data.error_msg)}`);
     }
 
-    this.equipmentid = data?.equipmentid || data?.equipment_id || data?.id;
-    console.log('🆔 Stored equipmentid:', this.equipmentid);
+    this.productvendorid = data?.productvendorid || data?.productvendor_id || data?.id;
+    console.log('🆔 Stored productvendorid:', this.productvendorid);
 
     return data;
   }
 
-  async getEquipment() {
-    if (!this.equipmentid) {
-      throw new Error('❌ equipmentid not found. Call createEquipment first.');
+  async getProductVendor() {
+    if (!this.productvendorid) {
+      throw new Error('❌ productvendorid not found. Call createProductVendor first.');
     }
 
-    return this.getEquipmentById(this.equipmentid);
+    return this.getProductVendorById(this.productvendorid);
   }
 
-  async getEquipmentById(id: number) {
+  async getProductVendorById(id: number) {
     const { tenantPath, logonAs, headers } = this.getHeaders();
 
     const response = await this.apiContext.get(
-      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/equipments/${id}`,
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/productvendors/${id}`,
       { headers }
     );
 
@@ -111,37 +111,37 @@ export class EquipmentApi {
     return Array.isArray(result.body) ? result.body[0] : result.body;
   }
 
-  async updateEquipment(payload: any) {
-    if (!this.equipmentid) {
-      throw new Error('❌ equipmentid not found. Call createEquipment first.');
+  async updateProductVendor(payload: any) {
+    if (!this.productvendorid) {
+      throw new Error('❌ productvendorid not found. Call createProductVendor first.');
     }
 
     const { tenantPath, logonAs, headers } = this.getHeaders();
 
     const response = await this.apiContext.put(
-      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/equipments/${this.equipmentid}`,
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/productvendors/${this.productvendorid}`,
       { headers, data: payload }
     );
 
     return await this.handleResponse(response, 'UPDATE');
   }
 
-  async deleteEquipmentById(id: number) {
+  async deleteProductVendorById(id: number) {
     const { tenantPath, logonAs, headers } = this.getHeaders();
 
     const response = await this.apiContext.delete(
-      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/equipments/${id}`,
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/productvendors/${id}`,
       { headers }
     );
 
     return await this.handleResponse(response, 'DELETE');
   }
 
-  async searchEquipments(filter: string, ipp: number = 25, page: number = 1) {
+  async searchProductVendors(filter: string, ipp: number = 25, page: number = 1) {
     const { tenantPath, logonAs, headers } = this.getHeaders();
 
     const response = await this.apiContext.get(
-      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/equipment`,
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/productvendor`,
       {
         headers,
         params: { ipp, page, filter }

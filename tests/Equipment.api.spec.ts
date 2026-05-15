@@ -1,114 +1,161 @@
-import { test, expect, request } from '@playwright/test';
-import {
-  getAuthToken,
-  getTenantPath,
-  getLogonAs
-} from '../src/utils/tokenStore.js';
-
-import { BASE_API_URL } from '../src/utils/constants.js';
-
-/* -------- EQUIPMENT NAME PARTS -------- */
+import { test, expect } from '@playwright/test';
+import { EquipmentApi } from '../src/api/EquipmentApi.js';
 
 const EQUIPMENT_PREFIX = [
-  'Premium',
-  'Standard',
-  'Heavy Duty',
-  'Compact',
-  'Professional',
-  'Deluxe'
+  'Premium', 'Standard', 'Heavy Duty',
+  'Compact', 'Professional', 'Deluxe'
 ];
 
 const EQUIPMENT_TYPES = [
-  'Bar Counter',
-  'Ice Machine',
-  'Serving Table',
-  'Glass Rack',
-  'Cocktail Station',
-  'Cooling Unit'
+  'Bar Counter', 'Ice Machine', 'Serving Table',
+  'Glass Rack', 'Cocktail Station', 'Cooling Unit'
 ];
 
 const EQUIPMENT_SIZE = [
-  'Single Unit',
-  'Double Unit',
-  'Large',
-  'Portable',
-  'Industrial'
+  'Single Unit', 'Double Unit', 'Large',
+  'Portable', 'Industrial'
 ];
 
-/* -------- UTILS -------- */
+const RELATED_SEGMENT1_IDS = [41, 157, 211, 259, 275];
+const RELATED_UOM_IDS = [15, 182, 185, 186, 527];
 
-function getRandom(arr: string[]) {
+function getRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').substring(0, 19);
+function generateEquipmentName() {
+  return `${getRandom(EQUIPMENT_PREFIX)} ${getRandom(EQUIPMENT_TYPES)} ${getRandom(EQUIPMENT_SIZE)}`;
 }
 
-test('API only: Create Equipment', async () => {
+test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
 
-  const apiContext = await request.newContext();
+  const equipmentApi = new EquipmentApi(request);
 
-  const token = getAuthToken();
-  const tenant = getTenantPath();
-  const logonAs = getLogonAs();
+  const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  console.log('🔐 Using Token:', token);
+  // =======================
+  // ✅ CREATE
+  // =======================
+  const startPost = Date.now();
 
-  const now = new Date();
-  const dateTime = formatDateTime(now);
-
-  // 🔥 Dynamic professional equipment name (LIKE PRODUCT)
-  const equipmentName = `${getRandom(EQUIPMENT_PREFIX)} ${getRandom(EQUIPMENT_TYPES)} ${getRandom(EQUIPMENT_SIZE)}_${Date.now()}`;
+  const equipmentName = generateEquipmentName();
+  const relatedSegment1 = getRandom(RELATED_SEGMENT1_IDS);
+  const relatedUom = getRandom(RELATED_UOM_IDS);
 
   const payload = {
-    equipment_num: "00000000000",
+    equipment_num: '00000000000',
+    source: 'web',
+    status: '1',
     custom: {
       equipment_name: equipmentName,
-
-      equipment_category: "1106",
+      equipment_category: '1106',
       equipment_subcategory: 1134,
       equipment_status: 564,
-
-      related_segment1: 157,
-      related_unitofmeasure: 185,
-
+      related_segment1: relatedSegment1,
+      related_unitofmeasure: relatedUom,
       equipment_salesvat: 566,
-
       ownerid: 18,
-      createtime: dateTime,
-      modifiedtime: dateTime,
-
-      assign_to: "Sonam Burbure"
-    },
-    source: "web",
-    status: "1"
+      assign_to: 'Sonam Burbure',
+      createtime: now(),
+      modifiedtime: now(),
+    }
   };
 
-  console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+  const createRes = await equipmentApi.createEquipment(payload);
 
-  const response = await apiContext.post(
-    `${BASE_API_URL}/${tenant}/api/${logonAs}/equipment`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-automate-secret': process.env.AUTOMATE_SECRET!
-      },
-      data: payload
-    }
+  const postTime = Date.now() - startPost;
+  console.log(`⏱️ POST Response Time: ${postTime} ms`);
+
+  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(createRes.equipmentid).toBeDefined();
+  expect.soft(createRes.equipment_name).toBe(equipmentName);
+
+  // =======================
+  // ✅ GET
+  // =======================
+  const startGet = Date.now();
+
+  const getRes = await equipmentApi.getEquipment();
+
+  const getTime = Date.now() - startGet;
+  console.log(`⏱️ GET Response Time: ${getTime} ms`);
+
+  expect.soft(getTime).toBeLessThan(3000);
+  expect.soft(getRes.equipmentid).toBe(createRes.equipmentid);
+  expect.soft(getRes.equipment_name).toBe(equipmentName);
+
+  // =======================
+  // 🔍 SEARCH
+  // =======================
+  const searchRes = await equipmentApi.searchEquipments(
+    `equipment_name=${equipmentName}`
   );
 
-  const responseBody = await response.json();
+  console.log('🔍 SEARCH Response:', searchRes);
 
-  console.log('📩 Response:', responseBody);
+  const data = searchRes?.data || [];
 
-  if (!response.ok()) {
-    throw new Error(`❌ Equipment API failed: ${JSON.stringify(responseBody)}`);
-  }
+  expect.soft(data.length).toBeGreaterThan(0);
 
-  console.log('✅ Create Equipment Response:', responseBody);
+  const found = data.some((item: any) =>
+    item.equipment_name === equipmentName
+  );
 
-  expect(responseBody).toBeTruthy();
+  expect.soft(found).toBeTruthy();
 
+  // =======================
+  // ✅ PUT
+  // =======================
+  payload.custom.equipment_name = generateEquipmentName();
+  payload.custom.modifiedtime = now();
+
+  const startPut = Date.now();
+
+  await equipmentApi.updateEquipment(payload);
+
+  const putTime = Date.now() - startPut;
+  console.log(`⏱️ PUT Response Time: ${putTime} ms`);
+
+  expect.soft(putTime).toBeLessThan(3000);
+
+  const searchAfterPut = await equipmentApi.searchEquipments(
+    `equipment_name=${payload.custom.equipment_name}`
+  );
+  const dataAfterPut = searchAfterPut?.data || [];
+  const nameUpdated = dataAfterPut.some((item: any) =>
+    item.equipment_name === payload.custom.equipment_name
+  );
+  expect.soft(nameUpdated).toBeTruthy();
+
+  // =======================
+  // 🗑️ DELETE (dummy)
+  // =======================
+  const dummyPayload = {
+    ...payload,
+    custom: {
+      ...payload.custom,
+      equipment_name: generateEquipmentName(),
+      related_segment1: getRandom(RELATED_SEGMENT1_IDS.filter(id => id !== relatedSegment1)),
+    }
+  };
+
+  const dummyRes = await equipmentApi.createEquipment(dummyPayload);
+  const deleteId = dummyRes.equipmentid;
+
+  const startDelete = Date.now();
+
+  const deleteRes = await equipmentApi.deleteEquipmentById(deleteId);
+
+  const deleteTime = Date.now() - startDelete;
+  console.log(`⏱️ DELETE Response Time: ${deleteTime} ms`);
+
+  expect.soft(deleteTime).toBeLessThan(4000);
+  expect.soft(deleteRes?.success).toBe(true);
+
+  // =======================
+  // 🔥 VERIFY DELETE
+  // =======================
+  const deletedCheck = await equipmentApi.getEquipmentById(deleteId);
+
+  expect.soft(deletedCheck?.equipmentid).toBeUndefined();
 });
