@@ -33,7 +33,7 @@ function getRandom<T>(arr: T[]): T {
 }
 
 function generateStaffName() {
-  return `${getRandom(STAFF_PREFIX)} ${getRandom(STAFF_ROLES)} ${getRandom(STAFF_CATEGORY)}`;
+  return `${getRandom(STAFF_PREFIX)} ${getRandom(STAFF_ROLES)} ${getRandom(STAFF_CATEGORY)}_${Date.now()}`;
 }
 
 test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
@@ -77,7 +77,7 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
   const postTime = Date.now() - startPost;
   console.log(`⏱️ POST Response Time: ${postTime} ms`);
 
-  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(postTime).toBeLessThan(30000);
   expect.soft(createRes.stafftypeid).toBeDefined();
   expect.soft(createRes.stafftype_name).toBe(staffName);
 

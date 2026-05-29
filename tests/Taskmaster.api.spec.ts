@@ -1,21 +1,43 @@
 import { test, expect } from '@playwright/test';
 import { TaskMasterApi } from '../src/api/TaskMasterApi.js';
 
-const TASK_CATEGORIES = [
-  'Venue Setup',
-  'Catering Coordination',
-  'Staff Briefing',
-  'Equipment Deployment',
-  'Guest Management',
-  'Bar Operations',
-  'Safety Compliance',
-  'Transport Logistics',
-  'Decor Arrangement',
-  'Event Closedown'
+const TASK_PREFIX = [
+  'Pre-Event', 'On-Site', 'Post-Event', 'Day-Of', 'Setup',
+  'Closedown', 'Briefing', 'Inspection', 'Coordination', 'Review'
+];
+
+const TASK_TYPE = [
+  'Venue Setup', 'Catering Coordination', 'Staff Briefing',
+  'Equipment Deployment', 'Guest Management', 'Bar Operations',
+  'Safety Compliance', 'Transport Logistics', 'Decor Arrangement',
+  'Event Closedown', 'AV Check', 'Supplier Liaison',
+  'Parking Management', 'VIP Handling', 'Waste Disposal'
+];
+
+const TASK_DESCRIPTIONS = [
+  'Coordinate with venue staff to confirm space allocation, layout and setup requirements before event begins',
+  'Verify catering quantities, dietary requirements and confirm service timing with the catering team',
+  'Brief all event staff on their assigned roles, responsibilities and emergency procedures',
+  'Deploy and test all equipment on site and confirm operational readiness before doors open',
+  'Manage guest arrivals, oversee seating arrangements and handle any special accommodation requests',
+  'Monitor bar inventory levels, manage staff rotation and maintain service standards throughout the event',
+  'Conduct full safety walkthrough and verify compliance with venue health and safety regulations',
+  'Confirm transport bookings for staff, equipment and supplies and coordinate between locations',
+  'Supervise decor installation and verify the setup aligns with the approved client brief',
+  'Lead systematic post-event breakdown, complete inventory check and hand over venue to management',
+  'Confirm all supplier deliveries have arrived, inspect received items and report any shortfalls',
+  'Coordinate parking allocation for guests, vendors and event vehicles to avoid congestion',
+  'Manage VIP guest arrival protocols, assign dedicated escorts and oversee exclusive service areas',
+  'Oversee waste disposal and recycling operations to ensure compliance with environmental requirements',
+  'Conduct audio-visual and technical equipment checks and resolve any issues before event start',
 ];
 
 function getRandom(arr: string[]) {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function generateTaskName() {
+  return `${getRandom(TASK_PREFIX)} ${getRandom(TASK_TYPE)}`;
 }
 
 test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
@@ -23,14 +45,13 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
   const taskMasterApi = new TaskMasterApi(request);
 
   const now = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
-  const unique = () => Date.now();
 
   // =======================
   // ✅ CREATE
   // =======================
   const startPost = Date.now();
 
-  const taskName = `${getRandom(TASK_CATEGORIES)}_${unique()}`;
+  const taskName = generateTaskName();
 
   const payload = {
     taskmaster_num: '00000000000',
@@ -38,6 +59,10 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
     status: '1',
     custom: {
       taskmaster_name: taskName,
+      taskmaster_category: 640,
+      taskmaster_description: getRandom(TASK_DESCRIPTIONS),
+      taskmaster_priority: 654,
+      taskmaster_dueday: '2',
       ownerid: 18,
       assign_to: 'Sonam Burbure',
       createtime: now(),
@@ -90,7 +115,7 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
   // =======================
   // ✅ PUT
   // =======================
-  payload.custom.taskmaster_name = `${getRandom(TASK_CATEGORIES)}_${unique()}`;
+  payload.custom.taskmaster_name = generateTaskName();
   payload.custom.modifiedtime = now();
 
   const startPut = Date.now();
@@ -118,7 +143,7 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
     ...payload,
     custom: {
       ...payload.custom,
-      taskmaster_name: `${getRandom(TASK_CATEGORIES)}_${unique()}`,
+      taskmaster_name: generateTaskName(),
     }
   };
 

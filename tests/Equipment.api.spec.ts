@@ -1,20 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { EquipmentApi } from '../src/api/EquipmentApi.js';
 
-const EQUIPMENT_PREFIX = [
-  'Premium', 'Standard', 'Heavy Duty',
-  'Compact', 'Professional', 'Deluxe'
-];
-
-const EQUIPMENT_TYPES = [
-  'Bar Counter', 'Ice Machine', 'Serving Table',
-  'Glass Rack', 'Cocktail Station', 'Cooling Unit'
-];
-
-const EQUIPMENT_SIZE = [
-  'Single Unit', 'Double Unit', 'Large',
-  'Portable', 'Industrial'
-];
+const SEGMENT1_NAMES = ['Furniture', 'Bar Tools', 'Glassware', 'Bar Storage', 'Refrigerator', 'Bar Cleaning'];
+const SEGMENT2_NAMES = ['10_ani1', 'Main Hall', 'VIP Area', 'Outdoor', 'Standard', 'Premium'];
+const UOM_NAMES = ['2 peaces', '5 units', '10 sets', '3 boxes', '1 pack', '4 items'];
 
 const RELATED_SEGMENT1_IDS = [41, 157, 211, 259, 275];
 const RELATED_UOM_IDS = [15, 182, 185, 186, 527];
@@ -24,7 +13,7 @@ function getRandom<T>(arr: T[]): T {
 }
 
 function generateEquipmentName() {
-  return `${getRandom(EQUIPMENT_PREFIX)} ${getRandom(EQUIPMENT_TYPES)} ${getRandom(EQUIPMENT_SIZE)}`;
+  return `${getRandom(SEGMENT1_NAMES)}/${getRandom(SEGMENT2_NAMES)}/${getRandom(UOM_NAMES)}_${Date.now()}`;
 }
 
 test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
@@ -48,12 +37,20 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
     status: '1',
     custom: {
       equipment_name: equipmentName,
-      equipment_category: '1106',
-      equipment_subcategory: 1134,
+      equipment_category: 555,
+      equipment_subcategory: 1146,
       equipment_status: 564,
       related_segment1: relatedSegment1,
       related_unitofmeasure: relatedUom,
-      equipment_salesvat: 566,
+      equipment_priority: '1st',
+      desired_optimal_stock: '4',
+      equipment_selling_price: '1.00',
+      equipment_salesvat: 567,
+      equipment_breakage_cost: '1.00',
+      equipment_brand_name: 'name',
+      equipment_manufacturer_name: '1',
+      equipment_bar_code: '3.00',
+      equipment_description: 'abc',
       ownerid: 18,
       assign_to: 'Sonam Burbure',
       createtime: now(),

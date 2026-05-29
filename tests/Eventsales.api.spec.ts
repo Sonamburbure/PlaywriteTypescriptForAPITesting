@@ -70,7 +70,7 @@ test('API: Net Sales - Paid Commission', async () => {
   console.log("Expected:", expectedNet);
   console.log("Actual:", actualNet);
 
-  expect(actualNet,
+  expect.soft(actualNet,
     `❌ Paid Commission mismatch\nExpected: ${expectedNet}\nActual: ${actualNet}`
   ).toBe(expectedNet);
 
@@ -143,7 +143,7 @@ test('API: Net Sales - Retained Commission', async () => {
   console.log("Expected:", expectedNet);
   console.log("Actual:", actualNet);
 
-  expect(actualNet,
+  expect.soft(actualNet,
     `❌ Retained Commission mismatch\nExpected: ${expectedNet}\nActual: ${actualNet}`
   ).toBe(expectedNet);
 

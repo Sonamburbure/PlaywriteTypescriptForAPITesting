@@ -5,23 +5,33 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-  "api:stage": "cross-env ENV_FILE=.env.stage TEST_TYPE=api npx playwright test --project=api",
-  "api:prod": "cross-env ENV_FILE=.env.prod TEST_TYPE=api npx playwright test --project=api",
-  "api:dev": "cross-env ENV_FILE=.env.dev TEST_TYPE=api npx playwright test --project=api",
-  "ui:stage": "cross-env ENV_FILE=.env.stage TEST_TYPE=ui npx playwright test --project=ui",
-  "ui:prod": "cross-env ENV_FILE=.env.prod TEST_TYPE=ui npx playwright test --project=ui",
-  "ui:dev": "cross-env ENV_FILE=.env.dev TEST_TYPE=ui npx playwright test --project=ui",
-  "report": "npx playwright show-report"
-
+    "chatbot": "cross-env ENV_FILE=.env.stage npx tsx src/chatbot/run.ts",
+    "chatbot:dev": "cross-env ENV_FILE=.env.dev npx tsx src/chatbot/run.ts",
+    "wizard": "cross-env ENV_FILE=.env.dev npx tsx src/chatbot/wizard.ts",
+    "api:stage": "cross-env ENV_FILE=.env.stage TEST_TYPE=api npx playwright test --project=api",
+    "api:prod": "cross-env ENV_FILE=.env.prod TEST_TYPE=api npx playwright test --project=api",
+    "api:dev": "cross-env ENV_FILE=.env.dev TEST_TYPE=api npx playwright test --project=api",
+    "smoke:dev": "cross-env ENV_FILE=.env.dev TEST_TYPE=api npx playwright test tests/smoke.api.spec.ts --project=api",
+    "smoke:stage": "cross-env ENV_FILE=.env.stage TEST_TYPE=api npx playwright test tests/smoke.api.spec.ts --project=api",
+    "smoke:prod": "cross-env ENV_FILE=.env.prod TEST_TYPE=api npx playwright test tests/smoke.api.spec.ts --project=api",
+    "ui:stage": "cross-env ENV_FILE=.env.stage TEST_TYPE=ui npx playwright test --project=ui",
+    "ui:prod": "cross-env ENV_FILE=.env.prod TEST_TYPE=ui npx playwright test --project=ui",
+    "ui:prod:headed": "cross-env ENV_FILE=.env.prod TEST_TYPE=ui npx playwright test --project=ui --headed",
+    "account:ui": "cross-env ENV_FILE=.env.prod TEST_TYPE=ui npx playwright test tests/ui/Account.ui.spec.ts --project=ui --headed",
+    "ui:dev": "cross-env ENV_FILE=.env.dev TEST_TYPE=ui npx playwright test --project=ui",
+    "report": "npx playwright show-report"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.0",
     "cross-env": "^10.1.0",
     "playwright": "^1.58.0",
     "ts-node": "^10.9.2",
+    "tsx": "^4.22.3",
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.99.0",
+    "@google/generative-ai": "^0.24.1",
     "dotenv": "^17.3.1"
   }
 }

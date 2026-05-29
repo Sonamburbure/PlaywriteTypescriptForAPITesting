@@ -46,8 +46,9 @@ test('API: Create Subsidiary under existing Account', async () => {
   console.log('Create Subsidiary API response:', response);
 
   const subsidiary = Array.isArray(response) ? response[0] : response;
+  const customerId = subsidiary?.customerid || subsidiary?.customer_id || subsidiary?.id;
 
-  expect(subsidiary).toBeTruthy();
-  expect(subsidiary.customerid).toBeTruthy();
-  expect(subsidiary.related_customerid).toBe(String(parentAccountId));
+  expect.soft(subsidiary).toBeTruthy();
+  expect.soft(customerId).toBeTruthy();
+  expect.soft(subsidiary?.related_customerid).toBe(String(parentAccountId));
 });

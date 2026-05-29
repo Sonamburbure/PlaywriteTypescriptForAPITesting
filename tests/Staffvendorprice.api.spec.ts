@@ -26,7 +26,7 @@ function getRandom<T>(arr: T[]): T {
 }
 
 function generatePriceName() {
-  return `${getRandom(STAFF_LEVEL)} ${getRandom(STAFF_ROLE)} ${getRandom(PRICING_TYPE)}`;
+  return `${getRandom(STAFF_LEVEL)} ${getRandom(STAFF_ROLE)} ${getRandom(PRICING_TYPE)}_${Date.now()}`;
 }
 
 test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {

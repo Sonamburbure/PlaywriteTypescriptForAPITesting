@@ -15,14 +15,15 @@ const BUNDLE_PURPOSE = [
   'Package', 'Bundle', 'Setup', 'Kit', 'Arrangement'
 ];
 
-const RELATED_EQUIPMENT_IDS = [138, 139, 140, 141, 142];
+const PARENT_EQUIPMENT_IDS = [138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 150, 155, 160, 165, 168, 169];
+const CHILD_EQUIPMENT_IDS  = [138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 150, 155, 160, 165, 168, 169];
 
 function getRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
 function generateBundleName() {
-  return `${getRandom(BUNDLE_PREFIX)} ${getRandom(BUNDLE_TYPES)} ${getRandom(BUNDLE_PURPOSE)}`;
+  return `${getRandom(BUNDLE_PREFIX)} ${getRandom(BUNDLE_TYPES)} ${getRandom(BUNDLE_PURPOSE)}_${Date.now()}`;
 }
 
 test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {
@@ -37,7 +38,8 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
   const startPost = Date.now();
 
   const bundleName = generateBundleName();
-  const relatedEquipment = getRandom(RELATED_EQUIPMENT_IDS);
+  const parentEquipment = getRandom(PARENT_EQUIPMENT_IDS);
+  const childEquipment = getRandom(CHILD_EQUIPMENT_IDS.filter(id => id !== parentEquipment));
 
   const payload = {
     equipmentbundle_num: '00000000000',
@@ -45,8 +47,8 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
     status: '1',
     custom: {
       equipmentbundle_name: bundleName,
-      related_equipment: relatedEquipment,
-      equipmentbundlechildequipment_multiple_record: relatedEquipment,
+      related_equipment: parentEquipment,
+      equipmentbundlechildequipment_multiple_record: childEquipment,
       equipmentbundlechildequipment_multiple_module: 'equipment',
       child_product_qty: '1.00',
       ownerid: 18,
@@ -125,15 +127,16 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
   // =======================
   // 🗑️ DELETE (dummy)
   // =======================
-  const dummyEquipment = getRandom(RELATED_EQUIPMENT_IDS.filter(id => id !== relatedEquipment));
+  const dummyParent = getRandom(PARENT_EQUIPMENT_IDS.filter(id => id !== parentEquipment));
+  const dummyChild = getRandom(CHILD_EQUIPMENT_IDS.filter(id => id !== dummyParent));
 
   const dummyPayload = {
     ...payload,
     custom: {
       ...payload.custom,
       equipmentbundle_name: generateBundleName(),
-      related_equipment: dummyEquipment,
-      equipmentbundlechildequipment_multiple_record: dummyEquipment,
+      related_equipment: dummyParent,
+      equipmentbundlechildequipment_multiple_record: dummyChild,
     }
   };
 

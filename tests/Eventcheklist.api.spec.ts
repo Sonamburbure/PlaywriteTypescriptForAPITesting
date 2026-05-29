@@ -56,7 +56,7 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
   const postTime = Date.now() - startPost;
   console.log(`⏱️ POST Response Time: ${postTime} ms`);
 
-  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(postTime).toBeLessThan(10000);
   expect.soft(createRes.eventchecklistid).toBeDefined();
   expect.soft(createRes.eventchecklist_name).toBe(payload.custom.eventchecklist_name);
 

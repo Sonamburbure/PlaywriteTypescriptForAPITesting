@@ -2,9 +2,9 @@ import { getAuthToken, getTenantPath, getLogonAs } from '../utils/tokenStore.js'
 import { BASE_API_URL } from '../utils/constants.js';
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 
-export class EventEmployeeFileApi {
+export class PackageItemApi {
   private apiContext: APIRequestContext;
-  private eventemployeefilesid: number | null = null;
+  private packageitemid: number | null = null;
 
   constructor(apiContext: APIRequestContext) {
     this.apiContext = apiContext;
@@ -66,35 +66,39 @@ export class EventEmployeeFileApi {
     };
   }
 
-  async createEventEmployeeFile(payload: any) {
+  async createPackageItem(payload: any) {
     const { tenantPath, logonAs, headers } = this.getHeaders();
 
     const response = await this.apiContext.post(
-      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/eventemployeefiles`,
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/packageitem`,
       { headers, data: payload }
     );
 
     const data = await this.handleResponse(response, 'CREATE');
 
-    this.eventemployeefilesid = data?.eventemployeefilesid || data?.eventemployeefiles_id || data?.id;
-    console.log('🆔 Stored eventemployeefilesid:', this.eventemployeefilesid);
+    if (data?.error_msg) {
+      throw new Error(`❌ CREATE failed (API error): ${JSON.stringify(data.error_msg)}`);
+    }
+
+    this.packageitemid = data?.packageitemid || data?.packageitem_id || data?.id;
+    console.log('🆔 Stored packageitemid:', this.packageitemid);
 
     return data;
   }
 
-  async getEventEmployeeFile() {
-    if (!this.eventemployeefilesid) {
-      throw new Error('❌ eventemployeefilesid not found. Call createEventEmployeeFile first.');
+  async getPackageItem() {
+    if (!this.packageitemid) {
+      throw new Error('❌ packageitemid not found. Call createPackageItem first.');
     }
 
-    return this.getEventEmployeeFileById(this.eventemployeefilesid);
+    return this.getPackageItemById(this.packageitemid);
   }
 
-  async getEventEmployeeFileById(id: number) {
+  async getPackageItemById(id: number) {
     const { tenantPath, logonAs, headers } = this.getHeaders();
 
     const response = await this.apiContext.get(
-      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/eventemployeefiles/${id}`,
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/packageitems/${id}`,
       { headers }
     );
 
@@ -107,37 +111,37 @@ export class EventEmployeeFileApi {
     return Array.isArray(result.body) ? result.body[0] : result.body;
   }
 
-  async updateEventEmployeeFile(payload: any) {
-    if (!this.eventemployeefilesid) {
-      throw new Error('❌ eventemployeefilesid not found. Call createEventEmployeeFile first.');
+  async updatePackageItem(payload: any) {
+    if (!this.packageitemid) {
+      throw new Error('❌ packageitemid not found. Call createPackageItem first.');
     }
 
     const { tenantPath, logonAs, headers } = this.getHeaders();
 
-    const response = await this.apiContext.post(
-      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/eventemployeefiles/${this.eventemployeefilesid}`,
-      { headers, data: { ...payload, _method: 'PUT' } }
+    const response = await this.apiContext.put(
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/packageitems/${this.packageitemid}`,
+      { headers, data: payload }
     );
 
     return await this.handleResponse(response, 'UPDATE');
   }
 
-  async deleteEventEmployeeFileById(id: number) {
+  async deletePackageItemById(id: number) {
     const { tenantPath, logonAs, headers } = this.getHeaders();
 
     const response = await this.apiContext.delete(
-      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/eventemployeefiles/${id}`,
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/packageitems/${id}`,
       { headers }
     );
 
-    return await this.handleResponseSafe(response);
+    return await this.handleResponse(response, 'DELETE');
   }
 
-  async searchEventEmployeeFiles(filter: string, ipp: number = 25, page: number = 1) {
+  async searchPackageItems(filter: string, ipp: number = 25, page: number = 1) {
     const { tenantPath, logonAs, headers } = this.getHeaders();
 
     const response = await this.apiContext.get(
-      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/eventemployeefiles`,
+      `${BASE_API_URL}/${tenantPath}/api/${logonAs}/packageitem`,
       {
         headers,
         params: { ipp, page, filter }

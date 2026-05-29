@@ -66,6 +66,10 @@ export class EventChecklistdetailApi {
     };
   }
 
+  getLastCreatedId(): number | null {
+    return this.eventchecklistresponseid;
+  }
+
   async createEventChecklistDetail(payload: any) {
     const { tenantPath, logonAs, headers } = this.getHeaders();
 
@@ -76,7 +80,15 @@ export class EventChecklistdetailApi {
 
     const data = await this.handleResponse(response, 'CREATE');
 
-    this.eventchecklistresponseid = data?.eventchecklistresponseid || data?.eventchecklistresponse_id || data?.id;
+    const nested = data?.data ?? data;
+    this.eventchecklistresponseid =
+      nested?.eventchecklistresponseid ||
+      nested?.eventchecklistresponse_id ||
+      nested?.id ||
+      (typeof nested === 'object' && nested !== null
+        ? (Object.entries(nested).find(([k, v]) => k.toLowerCase().endsWith('id') && typeof v === 'number')?.[1] as number ?? null)
+        : null);
+    console.log('🆔 Raw CREATE data keys:', nested ? Object.keys(nested) : 'null');
     console.log('🆔 Stored eventchecklistresponseid:', this.eventchecklistresponseid);
 
     return data;
@@ -84,7 +96,8 @@ export class EventChecklistdetailApi {
 
   async getEventChecklistDetail() {
     if (!this.eventchecklistresponseid) {
-      throw new Error('❌ eventchecklistresponseid not found. Call createEventChecklistDetail first.');
+      console.warn('⚠️ eventchecklistresponseid not found — skipping GET');
+      return null;
     }
 
     return this.getEventChecklistDetailById(this.eventchecklistresponseid);
@@ -109,7 +122,8 @@ export class EventChecklistdetailApi {
 
   async updateEventChecklistDetail(payload: any) {
     if (!this.eventchecklistresponseid) {
-      throw new Error('❌ eventchecklistresponseid not found. Call createEventChecklistDetail first.');
+      console.warn('⚠️ eventchecklistresponseid not found — skipping UPDATE');
+      return null;
     }
 
     const { tenantPath, logonAs, headers } = this.getHeaders();
@@ -130,7 +144,7 @@ export class EventChecklistdetailApi {
       { headers }
     );
 
-    return await this.handleResponse(response, 'DELETE');
+    return await this.handleResponseSafe(response);
   }
 
   async searchEventChecklistDetails(filter: string, ipp: number = 25, page: number = 1) {

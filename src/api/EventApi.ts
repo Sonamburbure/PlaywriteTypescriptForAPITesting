@@ -24,6 +24,7 @@ export class EventApi {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'x-automate-secret': process.env.AUTOMATE_SECRET!,
         },
         data: payload,
       }

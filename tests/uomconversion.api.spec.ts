@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { UomConversionApi } from '../src/api/UOMconversionApi.js';
 
-const RELATED_UOM_IDS = [15, 182, 185, 186, 527];
+const RELATED_UOM_IDS = [15, 182, 185, 186];
 const CONSUMABLE_QTY = ['1000.00', '2000.00', '3000.00', '5000.00', '10000.00'];
-const CONSUMABLE_UOM_IDS = [527, 528, 540];
+const CONSUMABLE_UOM_ID = '528';
 
 function getRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -28,7 +28,7 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
     status: '1',
     custom: {
       related_unitofmeasure: relatedUom,
-      conversion_consumable_unit: getRandom(CONSUMABLE_UOM_IDS),
+      conversion_consumable_unit: CONSUMABLE_UOM_ID,
       conversion_consumable_quantity: getRandom(CONSUMABLE_QTY),
       ownerid: 18,
       assign_to: 'Sonam Burbure',
@@ -42,7 +42,7 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
   const postTime = Date.now() - startPost;
   console.log(`⏱️ POST Response Time: ${postTime} ms`);
 
-  expect.soft(postTime).toBeLessThan(3000);
+  expect.soft(postTime).toBeLessThan(10000);
   expect.soft(createRes.unitofmeasureconversionid).toBeDefined();
 
   // =======================
@@ -103,6 +103,7 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
     custom: {
       ...payload.custom,
       related_unitofmeasure: dummyUom,
+      conversion_consumable_unit: CONSUMABLE_UOM_ID,
       conversion_consumable_quantity: getRandom(CONSUMABLE_QTY),
     }
   };

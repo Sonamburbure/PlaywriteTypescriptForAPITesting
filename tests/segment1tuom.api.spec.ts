@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { Segment1TuomApi } from '../src/api/Segments1TuomApi.js';
 
-const RELATED_SEGMENT1_IDS = [41, 211, 260, 275, 400, 409];
+const RELATED_SEGMENT1_IDS = [41, 157, 211, 259, 260, 275, 289, 400, 409, 420, 430, 440];
 const HOURS_OPTIONS = ['4', '6', '8', '10', '12'];
 
 function getRandom<T>(arr: T[]): T {

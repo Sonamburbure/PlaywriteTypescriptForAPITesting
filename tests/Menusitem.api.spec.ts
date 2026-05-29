@@ -25,7 +25,7 @@ const EVENT_MENU_IDS = [1, 5, 10, 15, 20];
 const ITEM_SERVED_IDS = [49, 50, 51, 52, 53];
 
 function generateItemName() {
-  return `${getRandom(DISH_PREFIX)} ${getRandom(DISH_MAIN)} ${getRandom(DISH_STYLE)}`;
+  return `${getRandom(DISH_PREFIX)} ${getRandom(DISH_MAIN)} ${getRandom(DISH_STYLE)}_${Date.now()}`;
 }
 
 test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {

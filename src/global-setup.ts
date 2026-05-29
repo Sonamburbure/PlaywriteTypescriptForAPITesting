@@ -6,14 +6,23 @@ import {
   setLogonAs
 } from '../src/utils/tokenStore.js';
 
-dotenv.config({ path: process.env.ENV_FILE || '.env.dev' });
+const args = process.argv.join(' ');
+const defaultEnv = args.includes('.api.spec') ? '.env.dev' : '.env.prod';
+const envFile = process.env.ENV_FILE || defaultEnv;
+dotenv.config({ path: envFile });
 
 export default async () => {
+  const detectedType = args.includes('.api.spec') ? 'api' : args.includes('.ui.spec') ? 'ui' : undefined;
+  const testType = process.env.TEST_TYPE || detectedType;
+
   console.log('🚀 Starting global setup...');
+  console.log('   ENV FILE  :', envFile);
+  console.log('   TEST TYPE :', testType || '(not set — defaulting to ui)');
+  console.log('   API URL   :', process.env.BASE_API_URL);
+  console.log('   UI URL    :', process.env.BASE_UI_URL);
 
   /* ================= API LOGIN ================= */
-  if (process.env.TEST_TYPE === 'api') {
-    // Create API context with baseURL and ignore HTTPS errors for dev
+  if (testType === 'api') {
     const apiContext = await request.newContext({
       baseURL: process.env.BASE_API_URL,
       ignoreHTTPSErrors: true,
@@ -24,7 +33,7 @@ export default async () => {
       }
     });
 
-    console.log('🔑 Using API EMAIL:', process.env.API_EMAIL);
+    console.log('🔑 API EMAIL:', process.env.API_EMAIL);
 
     try {
       const loginRes = await apiContext.post('/api/login', {
@@ -43,7 +52,6 @@ export default async () => {
       }
 
       const body = JSON.parse(text);
-
       setAuthToken(body.token);
       setTenantPath(body.tenant_cname);
       setLogonAs(body.logon_as);
@@ -58,20 +66,19 @@ export default async () => {
   }
 
   /* ================= UI LOGIN ================= */
-  if (process.env.TEST_TYPE === 'ui') {
+  if (testType === 'ui' || !testType) {
     const browser = await chromium.launch({
-      headless: false,
-      args: ['--start-maximized']
+      headless: true,
+      args: ['--no-sandbox', '--disable-dev-shm-usage']
     });
 
     const context = await browser.newContext({ viewport: null });
-    const page = await context.newPage();
+    const page    = await context.newPage();
 
     console.log('🌐 Navigating to:', process.env.BASE_UI_URL);
 
     await page.goto(process.env.BASE_UI_URL!, { waitUntil: 'networkidle' });
 
-    // Fill login form
     await page.getByPlaceholder('Email').fill(process.env.EMAIL!);
     await page.locator('input[name="password"]').fill(process.env.PASSWORD!);
 
@@ -79,12 +86,11 @@ export default async () => {
     await loginBtn.waitFor({ state: 'visible', timeout: 60000 });
     await loginBtn.click();
 
-    // Wait for dashboard/home page to load
-    await page.locator("i[role='button']").waitFor({ timeout: 60000 });
+    await page.waitForURL(url => url.toString().includes('/home'), { timeout: 60000 });
+    await page.waitForLoadState('networkidle', { timeout: 60000 });
 
     console.log('🎉 UI login successful');
 
-    // Save storageState for future test sessions
     await context.storageState({ path: 'storageState.json' });
     console.log('💾 storageState.json saved');
 

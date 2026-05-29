@@ -130,7 +130,7 @@ export class EmployeeAvailabilityApi {
       { headers }
     );
 
-    return await this.handleResponse(response, 'DELETE');
+    return await this.handleResponseSafe(response);
   }
 
   async searchEmployeeAvailabilities(filter: string, ipp: number = 25, page: number = 1) {

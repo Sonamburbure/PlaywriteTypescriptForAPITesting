@@ -25,7 +25,7 @@ function getRandom<T>(arr: T[]): T {
 }
 
 function generateCostingName() {
-  return `${getRandom(EQUIPMENT_PREFIX)} ${getRandom(EQUIPMENT_TYPES)} ${getRandom(COSTING_TYPES)}`;
+  return `${getRandom(EQUIPMENT_PREFIX)} ${getRandom(EQUIPMENT_TYPES)} ${getRandom(COSTING_TYPES)}_${Date.now()}`;
 }
 
 test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response time)', async ({ request }) => {

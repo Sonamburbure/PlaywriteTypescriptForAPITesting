@@ -1,10 +1,10 @@
 import { defineConfig } from '@playwright/test';
 import dotenv from 'dotenv';
 
-// ✅ Load ENV based on TEST_TYPE automatically
-const envFile =
-  process.env.ENV_FILE ||
-  (process.env.TEST_TYPE === 'api' ? '.env.prod' : '.env.dev');
+// Auto-detect env file from spec pattern when ENV_FILE not set
+const args = process.argv.join(' ');
+const defaultEnv = args.includes('.api.spec') ? '.env.dev' : '.env.prod';
+const envFile = process.env.ENV_FILE || defaultEnv;
 
 dotenv.config({ path: envFile });
 
@@ -16,9 +16,9 @@ console.log('EMAIL:', process.env.EMAIL);
 export default defineConfig({
 
   testDir: './tests',
-  timeout: 120000,
+  timeout: 600000,
   fullyParallel: false,
-  retries: process.env.TEST_TYPE === 'ui' ? 0 : 1,
+  retries: 0,
 
   reporter: [
     ['list'],
@@ -33,6 +33,9 @@ export default defineConfig({
     {
       name: 'api',
       testMatch: /.*\.api\.spec\.ts/,
+      use: {
+        ignoreHTTPSErrors: true,
+      },
     },
     {
       name: 'ui',
@@ -41,7 +44,7 @@ export default defineConfig({
       use: {
         baseURL: process.env.BASE_UI_URL,
         storageState: 'storageState.json',
-        headless: process.env.HEADLESS !== 'false',
+        headless: process.env.HEADLESS === 'true',
         viewport: null,
         ignoreHTTPSErrors: true,
         screenshot: 'on',

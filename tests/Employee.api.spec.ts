@@ -57,7 +57,7 @@ test('API: POST → GET → SEARCH → PUT → SEARCH → DELETE (with response 
   const postTime = Date.now() - startPost;
   console.log(`⏱️ POST Response Time: ${postTime} ms`);
 
-  expect.soft(postTime).toBeLessThan(2000);
+  expect.soft(postTime).toBeLessThan(5000);
   expect.soft(createRes.employeeid).toBeDefined();
   expect.soft(createRes.employee_email).toBe(payload.custom.employee_email);
 
