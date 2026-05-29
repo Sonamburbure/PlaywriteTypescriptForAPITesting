@@ -101,11 +101,15 @@ async function withRetry<T>(fn: () => Promise<T>, label = '', retries = 5, delay
     try {
       return await fn();
     } catch (err: any) {
-      const isLock = String(err?.message ?? '').includes('Lock wait timeout') ||
-                     String(err?.message ?? '').includes('1205');
-      if (attempt === retries || !isLock) throw err;
-      console.log(`  ⚠️  Lock wait timeout${label ? ` (${label})` : ''}, retry ${attempt}/${retries - 1} in ${delayMs * attempt}ms...`);
-      await new Promise(r => setTimeout(r, delayMs * attempt));
+      const msg            = String(err?.message ?? '');
+      const isLock         = msg.includes('Lock wait timeout') || msg.includes('1205');
+      const isRouteError   = msg.includes('Route not found') || msg.includes('404');
+      const isRetryable    = isLock || isRouteError;
+      if (attempt === retries || !isRetryable) throw err;
+      const retryDelay = isRouteError ? 3000 * attempt : delayMs * attempt;
+      const reason = isRouteError ? 'Route not found (server busy)' : 'Lock wait timeout';
+      console.log(`  ⚠️  ${reason}${label ? ` (${label})` : ''}, retry ${attempt}/${retries - 1} in ${retryDelay}ms...`);
+      await new Promise(r => setTimeout(r, retryDelay));
     }
   }
   throw new Error('unreachable');
