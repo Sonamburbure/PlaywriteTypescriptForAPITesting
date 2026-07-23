@@ -2,7 +2,7 @@ import { test, expect, Response } from '@playwright/test';
 import { CreateEventPage } from '../../src/pages/CreateEventPage.js';
 
 test('Create Event UI Test', async ({ page }) => {
-  await page.goto(process.env.BASE_UI_URL!);
+  await page.goto(process.env.BASE_UI_URL + '#/home/events');
 
   const createEventPage = new CreateEventPage(page);
   await createEventPage.createEvent();

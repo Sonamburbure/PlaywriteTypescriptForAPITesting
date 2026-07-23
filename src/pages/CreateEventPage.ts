@@ -4,9 +4,9 @@ import { Page, Locator } from '@playwright/test';
 export class CreateEventPage {
   readonly page: Page;
 
-  readonly menuBtn: Locator;
-  readonly eventManagementBtn: Locator;
-  readonly eventListBtn: Locator;
+  //readonly menuBtn: Locator;
+  //readonly eventManagementBtn: Locator;
+ // readonly eventListBtn: Locator;
   readonly createEventBtn: Locator;
 
   readonly eventName: Locator;
@@ -54,9 +54,9 @@ export class CreateEventPage {
   constructor(page: Page) {
     this.page = page;
 
-    this.menuBtn = page.locator("i[role='button']");
-    this.eventManagementBtn = page.getByRole('button', { name: 'Event Management', exact: true });
-    this.eventListBtn = page.getByRole('link', { name: 'Event Lists' });
+    //this.menuBtn = page.locator("i[role='button']");
+   // this.eventManagementBtn = page.getByRole('button', { name: 'Event Management', exact: true });
+   // this.eventListBtn = page.getByRole('link', { name: 'Event Lists' });
     this.createEventBtn = page.getByText("Create event");
 
     this.eventName = page.locator("input[name='event_name']");
@@ -119,9 +119,9 @@ export class CreateEventPage {
 
   async createEvent() {
 
-    await this.menuBtn.click();
-    await this.eventManagementBtn.click();
-    await this.eventListBtn.click();
+    //await this.menuBtn.click();
+    //await this.eventManagementBtn.click();
+    //await this.eventListBtn.click();
     await this.createEventBtn.click();
 
     const today = new Date();

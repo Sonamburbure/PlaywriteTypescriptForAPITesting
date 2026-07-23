@@ -7,9 +7,10 @@ import {
 } from '../src/utils/tokenStore.js';
 
 const args = process.argv.join(' ');
-const defaultEnv = args.includes('.api.spec') ? '.env.dev' : '.env.prod';
+const defaultEnv = args.includes('.api.spec') ? '.env.dev' : args.includes('.ui.spec') ? '.env.stage' : '.env.stage';
 const envFile = process.env.ENV_FILE || defaultEnv;
-dotenv.config({ path: envFile });
+process.env.ENV_FILE = envFile;
+dotenv.config({ path: envFile, override: true });
 
 export default async () => {
   const detectedType = args.includes('.api.spec') ? 'api' : args.includes('.ui.spec') ? 'ui' : undefined;
@@ -68,8 +69,8 @@ export default async () => {
   /* ================= UI LOGIN ================= */
   if (testType === 'ui' || !testType) {
     const browser = await chromium.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-dev-shm-usage']
+      headless: false,
+      args: ['--no-sandbox', '--disable-dev-shm-usage', '--start-maximized', '--incognito']
     });
 
     const context = await browser.newContext({ viewport: null });
@@ -77,17 +78,23 @@ export default async () => {
 
     console.log('🌐 Navigating to:', process.env.BASE_UI_URL);
 
-    await page.goto(process.env.BASE_UI_URL!, { waitUntil: 'networkidle' });
+    await page.goto(process.env.BASE_UI_URL!, { waitUntil: 'load' });
 
     await page.getByPlaceholder('Email').fill(process.env.EMAIL!);
     await page.locator('input[name="password"]').fill(process.env.PASSWORD!);
+    await page.locator("//button[normalize-space()='Login']").click();
 
-    const loginBtn = page.locator("//button[normalize-space()='Login']");
-    await loginBtn.waitFor({ state: 'visible', timeout: 60000 });
-    await loginBtn.click();
+    // If tenant-selection dialog appears, select DREAM EVENTS immediately
+    try {
+      await page.waitForSelector('input[type="radio"]', { timeout: 5000 });
+      await page.locator('input[type="radio"]').first().click();
+      console.log('✅ Selected DREAM EVENTS');
+    } catch {
+      console.log('⏭️  No tenant dialog — skipping');
+    }
 
-    await page.waitForURL(url => url.toString().includes('/home'), { timeout: 60000 });
-    await page.waitForLoadState('networkidle', { timeout: 60000 });
+    await page.waitForURL(url => url.toString().includes('#/home'), { timeout: 60000 });
+    console.log('📍 Landed on:', page.url());
 
     console.log('🎉 UI login successful');
 

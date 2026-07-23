@@ -206,8 +206,8 @@ test('SMOKE: UOM(x3) → Seg1(x18) → Seg2(x18) → BarSetup → BS Prod/Equip/
     unitofmeasure_num: '00000000000', source: 'web', status: '1',
     custom: {
       allow_multiple_product: '53',
-      default_consumable_unit: 527,
-      consumable_quantity: '5000.00',
+      default_consumable_unit: 528,
+      consumable_quantity: '50.00',
       ...owner, createtime: now(), modifiedtime: now(),
     }
   };
@@ -362,7 +362,7 @@ test('SMOKE: UOM(x3) → Seg1(x18) → Seg2(x18) → BarSetup → BS Prod/Equip/
   const [uomProductId, uomEquipmentId, uomStaffId] = await runConcurrent([
     () => ensureUom(UOM_PRODUCT,    '5000.00'),
     () => ensureUom(UOM_EQUIPMENT,  '5000.00'),
-    () => ensureUom(UOM_STAFF,      '100.00'),   // staff uses small consumable quantity
+    () => ensureUom(UOM_STAFF,      '50.00'),    // staff uses small consumable quantity
   ], 1);
   expect.soft(uomProductId).toBeDefined();
   expect.soft(uomEquipmentId).toBeDefined();
@@ -929,7 +929,7 @@ test('SMOKE: UOM(x3) → Seg1(x18) → Seg2(x18) → BarSetup → BS Prod/Equip/
       event_status: '452',
       related_customer: 1257,
       no_of_bar_required: '1',
-      related_venue: 341,
+      related_venue: 43,
       no_of_guest: noOfGuest,
       event_pricing_mode: 646,
       information: 'Full service event with cocktail bar, professional equipment setup, and dedicated staffing.',
@@ -950,10 +950,12 @@ test('SMOKE: UOM(x3) → Seg1(x18) → Seg2(x18) → BarSetup → BS Prod/Equip/
       event_product_planing_type: '1179',
       event_execution_type: '827',
       event_qty_required_product_uom: '1192',
+      "supplier_order_delivery_to": "1199",
       assign_to: 'Sonam Burbure',
       ownerid: 18,
     }
   });
+  console.log('  📩 Event raw response:', JSON.stringify(eventRaw));
   console.log('  📩 Event response keys:', eventRaw ? Object.keys(Array.isArray(eventRaw) ? eventRaw[0] : (eventRaw?.data ?? eventRaw)) : 'null');
   const eventid = extractId(eventRaw, 'eventid', 'event_id', 'id');
   expect.soft(eventid).toBeDefined();

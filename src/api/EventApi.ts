@@ -34,7 +34,10 @@ export class EventApi {
       throw new Error(`Create event failed with status: ${response.status()}`);
     }
 
-   const body = await response.json();
-return body;
+    const body = await response.json();
+    if (body?.error_msg) {
+      throw new Error(`Create event API error: ${JSON.stringify(body.error_msg)}`);
+    }
+    return body;
   }
 }

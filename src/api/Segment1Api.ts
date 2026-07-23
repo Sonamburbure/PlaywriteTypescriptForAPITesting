@@ -77,6 +77,25 @@ export class Segment1Api {
     const data = await this.handleResponse(response, 'CREATE');
 
     if (data?.error_msg) {
+      const errMsg = JSON.stringify(data.error_msg);
+      const isLockTimeout = errMsg.includes('1205') || errMsg.includes('Lock wait timeout');
+
+      if (isLockTimeout) {
+        // Record was inserted (status 201) but the audit UPDATE timed out.
+        // Search for the just-created record instead of retrying the whole insert.
+        const name = payload?.custom?.segment1_name;
+        if (name) {
+          await new Promise(r => setTimeout(r, 1000));
+          const search = await this.searchSegment1s(`segment1_name=${name}`);
+          const existing = search?.data?.[0];
+          if (existing?.segment1id) {
+            console.log(`  ⚠️  Lock timeout on audit; found created record: ${existing.segment1id}`);
+            this.segment1id = existing.segment1id;
+            return existing;
+          }
+        }
+      }
+
       throw new Error(`❌ CREATE failed (API error): ${JSON.stringify(data.error_msg)}`);
     }
 
