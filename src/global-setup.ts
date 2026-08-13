@@ -71,7 +71,7 @@ export default async () => {
     const browser = await chromium.launch({
       headless: process.env.HEADLESS === 'true',
       channel: 'chrome',
-      args: ['--no-sandbox', '--disable-dev-shm-usage', '--start-maximized', '--incognito']
+      args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--start-maximized', '--incognito']
     });
 
     const context = await browser.newContext({ viewport: null });
