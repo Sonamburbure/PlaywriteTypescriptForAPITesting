@@ -42,7 +42,8 @@ export class UserPage {
   }
 
   async navigateToList() {
-    await this.page.goto('https://web.automateevents.com/#/home/user-list');
+    //await this.page.goto('https://web.automateevents.com/#/home/user-list');
+    await this.page.goto('https://stage-ui.automateevents.com/#/home/user-list')
     await this.page.waitForLoadState('networkidle');
   }
 
