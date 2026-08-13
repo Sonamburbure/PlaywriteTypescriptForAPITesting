@@ -55,7 +55,6 @@ export default defineConfig({
         video: 'on',
 
         launchOptions: {
-          channel: 'chrome',
           args: [
             '--incognito',
             '--no-sandbox',

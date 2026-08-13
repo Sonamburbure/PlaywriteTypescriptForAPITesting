@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import fs from 'fs';
 import { request, chromium } from '@playwright/test';
 import {
   setAuthToken,
@@ -70,20 +71,32 @@ export default async () => {
   if (testType === 'ui' || !testType) {
     const browser = await chromium.launch({
       headless: process.env.HEADLESS === 'true',
-      channel: 'chrome',
       args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--start-maximized', '--incognito']
     });
 
     const context = await browser.newContext({ viewport: null });
     const page    = await context.newPage();
 
+    page.on('console', msg => console.log(`   [browser console:${msg.type()}]`, msg.text()));
+    page.on('pageerror', err => console.log('   [browser pageerror]', err.message));
+
     console.log('🌐 Navigating to:', process.env.BASE_UI_URL);
 
-    await page.goto(process.env.BASE_UI_URL!, { waitUntil: 'load' });
+    try {
+      await page.goto(process.env.BASE_UI_URL!, { waitUntil: 'load' });
 
-    await page.getByPlaceholder('Email').fill(process.env.EMAIL!);
-    await page.locator('input[name="password"]').fill(process.env.PASSWORD!);
-    await page.locator("//button[normalize-space()='Login']").click();
+      await page.getByPlaceholder('Email').fill(process.env.EMAIL!);
+      await page.locator('input[name="password"]').fill(process.env.PASSWORD!);
+      await page.locator("//button[normalize-space()='Login']").click();
+    } catch (err: any) {
+      console.log('❌ Login page did not render as expected. Capturing diagnostics...');
+      console.log('   Current URL:', page.url());
+      console.log('   Page title :', await page.title().catch(() => '(unavailable)'));
+      await page.screenshot({ path: 'global-setup-failure.png', fullPage: true }).catch(() => {});
+      fs.writeFileSync('global-setup-failure.html', await page.content().catch(() => '(unavailable)'));
+      console.log('   📸 Saved global-setup-failure.png and global-setup-failure.html');
+      throw err;
+    }
 
     // If tenant-selection dialog appears, select DREAM EVENTS immediately
     try {
