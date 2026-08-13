@@ -1,0 +1,955 @@
+
+<title>Playwright Automation Setup — API & UI</title>
+<style>
+  :root {
+    --bg: #F7F9FC;
+    --surface: #FFFFFF;
+    --border: #DDE3EC;
+    --text: #1A2332;
+    --muted: #5A6A7E;
+    --accent: #1A6DFF;
+    --accent-soft: #E8F0FF;
+    --green: #0D9968;
+    --green-soft: #E6F6F0;
+    --code-bg: #0F1B2D;
+    --code-text: #C9D8F0;
+    --tag-bg: #EEF2FB;
+    --tag-text: #1A6DFF;
+    --heading-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --body-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --mono-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0D1117;
+      --surface: #161B22;
+      --border: #2A3140;
+      --text: #E0E8F4;
+      --muted: #7A8FA8;
+      --accent: #4D8EFF;
+      --accent-soft: #1A2540;
+      --green: #2BC886;
+      --green-soft: #0D2820;
+      --code-bg: #090E18;
+      --code-text: #C9D8F0;
+      --tag-bg: #1A2540;
+      --tag-text: #4D8EFF;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0D1117;
+    --surface: #161B22;
+    --border: #2A3140;
+    --text: #E0E8F4;
+    --muted: #7A8FA8;
+    --accent: #4D8EFF;
+    --accent-soft: #1A2540;
+    --green: #2BC886;
+    --green-soft: #0D2820;
+    --code-bg: #090E18;
+    --code-text: #C9D8F0;
+    --tag-bg: #1A2540;
+    --tag-text: #4D8EFF;
+  }
+
+  :root[data-theme="light"] {
+    --bg: #F7F9FC;
+    --surface: #FFFFFF;
+    --border: #DDE3EC;
+    --text: #1A2332;
+    --muted: #5A6A7E;
+    --accent: #1A6DFF;
+    --accent-soft: #E8F0FF;
+    --green: #0D9968;
+    --green-soft: #E6F6F0;
+    --code-bg: #0F1B2D;
+    --code-text: #C9D8F0;
+    --tag-bg: #EEF2FB;
+    --tag-text: #1A6DFF;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--body-family);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* Header */
+  .doc-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 32px;
+    margin-bottom: 40px;
+  }
+
+  .doc-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .doc-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+    text-wrap: balance;
+    letter-spacing: -0.5px;
+  }
+
+  .doc-subtitle {
+    font-size: 16px;
+    color: var(--muted);
+    margin-top: 10px;
+    max-width: 600px;
+  }
+
+  .doc-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+  }
+
+  .tag {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--tag-bg);
+    color: var(--tag-text);
+    border: 1px solid var(--border);
+  }
+
+  /* TOC */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 40px;
+  }
+
+  .toc-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .toc-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 24px;
+  }
+
+  .toc-list a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 13.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+  }
+
+  .toc-list a:hover { text-decoration: underline; }
+
+  .toc-num {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    min-width: 18px;
+  }
+
+  /* Sections */
+  .section {
+    margin-bottom: 44px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-num {
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  h2 {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.2px;
+  }
+
+  h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 24px 0 10px;
+  }
+
+  p {
+    color: var(--muted);
+    margin-bottom: 12px;
+    max-width: 680px;
+  }
+
+  /* Code blocks */
+  pre {
+    background: var(--code-bg);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 12px 0;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  code {
+    font-family: var(--mono-family);
+    font-size: 13px;
+    color: var(--code-text);
+    line-height: 1.7;
+  }
+
+  p code, li code {
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+
+  .code-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    margin-top: 18px;
+  }
+
+  /* Syntax colors in code */
+  .kw { color: #7DD3FC; }   /* keyword - light blue */
+  .str { color: #86EFAC; }  /* string - green */
+  .cm { color: #4A6078; }   /* comment - muted */
+  .fn { color: #C084FC; }   /* function - purple */
+  .num { color: #FCA5A5; }  /* number - rose */
+  .op { color: #94A3B8; }   /* operator */
+
+  /* Steps */
+  .steps {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    gap: 0 14px;
+    position: relative;
+  }
+
+  .step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 32px;
+    bottom: -4px;
+    width: 2px;
+    background: var(--border);
+  }
+
+  .step-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+    position: relative;
+    z-index: 1;
+  }
+
+  .step-body {
+    padding-bottom: 24px;
+  }
+
+  .step-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+    margin-top: 5px;
+  }
+
+  .step-desc {
+    font-size: 13.5px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    max-width: none;
+  }
+
+  /* Folder tree */
+  .tree {
+    background: var(--code-bg);
+    border-radius: 8px;
+    padding: 20px;
+    overflow-x: auto;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .tree-line {
+    font-family: var(--mono-family);
+    font-size: 13px;
+    line-height: 1.8;
+    white-space: pre;
+  }
+
+  .t-folder { color: #7DD3FC; font-weight: 600; }
+  .t-file   { color: #C9D8F0; }
+  .t-desc   { color: #4A6078; }
+  .t-tree   { color: #2A3F55; }
+
+  /* Tables */
+  .tbl-wrap {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+
+  thead th {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody tr:hover { background: var(--accent-soft); }
+
+  td code {
+    font-size: 12px;
+  }
+
+  .td-muted { color: var(--muted); font-size: 13px; }
+
+  /* Callout */
+  .callout {
+    display: flex;
+    gap: 12px;
+    background: var(--green-soft);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--green);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 16px 0;
+  }
+
+  .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  .callout-text {
+    font-size: 13.5px;
+    color: var(--text);
+    line-height: 1.55;
+  }
+
+  .callout-text strong { color: var(--green); }
+
+  /* Script table rows */
+  .script-env {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-right: 4px;
+  }
+
+  .env-dev   { background: #FEF3C7; color: #92400E; }
+  .env-stage { background: #E0F2FE; color: #0369A1; }
+  .env-prod  { background: #FCE7F3; color: #9D174D; }
+
+  @media (max-width: 600px) {
+    .toc-list { grid-template-columns: 1fr; }
+    .doc-title { font-size: 26px; }
+  }
+</style>
+
+<div class="page">
+
+  <!-- Header -->
+  <header class="doc-header">
+    <div class="doc-eyebrow">QA Automation Documentation</div>
+    <h1 class="doc-title">Playwright Automation Framework — API & UI</h1>
+    <p class="doc-subtitle">An end-to-end automation framework was built from scratch using Playwright and TypeScript, covering REST API testing and browser-based UI testing across multiple environments.</p>
+    <div class="doc-meta">
+      <span class="tag">Playwright v1.58</span>
+      <span class="tag">TypeScript v5.9</span>
+      <span class="tag">Node.js v18+</span>
+      <span class="tag">API Automation</span>
+      <span class="tag">UI Automation</span>
+      <span class="tag">Multi-Environment</span>
+    </div>
+  </header>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <div class="toc-title">Contents</div>
+    <ul class="toc-list">
+      <li><a href="#prereq"><span class="toc-num">01</span> Prerequisites</a></li>
+      <li><a href="#install"><span class="toc-num">02</span> Installation Steps</a></li>
+      <li><a href="#structure"><span class="toc-num">03</span> Folder Structure</a></li>
+      <li><a href="#config"><span class="toc-num">04</span> Configuration Files</a></li>
+      <li><a href="#api"><span class="toc-num">05</span> API Automation</a></li>
+      <li><a href="#ui"><span class="toc-num">06</span> UI Automation</a></li>
+      <li><a href="#scripts"><span class="toc-num">07</span> NPM Run Scripts</a></li>
+      <li><a href="#reports"><span class="toc-num">08</span> Reports & Debugging</a></li>
+    </ul>
+  </nav>
+
+  <!-- 01 Prerequisites -->
+  <section class="section" id="prereq">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2>Prerequisites Installed</h2>
+    </div>
+    <p>The following tools were installed on the machine before the framework was set up.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Tool</th><th>Version</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Node.js</strong></td><td>v18+</td><td class="td-muted">JavaScript runtime — required to run Playwright</td></tr>
+          <tr><td><strong>npm</strong></td><td>Bundled with Node</td><td class="td-muted">Package manager used to install all dependencies</td></tr>
+          <tr><td><strong>VS Code</strong></td><td>Latest</td><td class="td-muted">IDE used to write and manage tests</td></tr>
+          <tr><td><strong>Git</strong></td><td>Latest</td><td class="td-muted">Version control — project was pushed to GitHub</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <br>
+    <p>Node.js and npm versions were verified before setup began:</p>
+    <pre><code>node --version     <span class="cm"># v18.x.x or higher</span>
+npm --version      <span class="cm"># 9.x.x or higher</span></code></pre>
+  </section>
+
+  <!-- 02 Installation -->
+  <section class="section" id="install">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2>Packages Installed</h2>
+    </div>
+    <p>The following packages were installed to build the framework from scratch.</p>
+
+    <ol class="steps">
+
+      <li class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Project folder was created and npm was initialized</div>
+          <pre><code>mkdir PlaywrightProject
+cd PlaywrightProject
+npm init -y</code></pre>
+          <p class="step-desc"><code>"type": "module"</code> was added to <code>package.json</code> to enable ES module imports.</p>
+        </div>
+      </li>
+
+      <li class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Playwright was installed</div>
+          <pre><code>npm install --save-dev @playwright/test playwright</code></pre>
+        </div>
+      </li>
+
+      <li class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">TypeScript and execution tools were installed</div>
+          <pre><code>npm install --save-dev typescript ts-node tsx</code></pre>
+          <p class="step-desc"><code>tsx</code> was used to run TypeScript files directly without a separate build step.</p>
+        </div>
+      </li>
+
+      <li class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Environment and utility packages were installed</div>
+          <pre><code>npm install dotenv                <span class="cm"># loads .env files into process.env</span>
+npm install --save-dev cross-env  <span class="cm"># sets env vars cross-platform (Windows + Mac)</span></code></pre>
+        </div>
+      </li>
+
+      <li class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Chromium browser was installed for UI tests</div>
+          <pre><code>npx playwright install chromium</code></pre>
+          <p class="step-desc">Playwright downloaded and managed the Chromium browser used to run all UI test specs.</p>
+        </div>
+      </li>
+
+      <li class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-title">TypeScript config was created</div>
+          <div class="code-label">tsconfig.json</div>
+          <pre><code>{
+  <span class="str">"compilerOptions"</span>: {
+    <span class="str">"target"</span>: <span class="str">"ES2022"</span>,
+    <span class="str">"module"</span>: <span class="str">"ES2022"</span>,
+    <span class="str">"moduleResolution"</span>: <span class="str">"bundler"</span>,
+    <span class="str">"strict"</span>: <span class="kw">true</span>,
+    <span class="str">"esModuleInterop"</span>: <span class="kw">true</span>
+  },
+  <span class="str">"include"</span>: [<span class="str">"src"</span>, <span class="str">"tests"</span>]
+}</code></pre>
+        </div>
+      </li>
+
+      <li class="step">
+        <div class="step-num">7</div>
+        <div class="step-body">
+          <div class="step-title">Playwright config was created with two projects — api and ui</div>
+          <div class="code-label">playwright.config.ts</div>
+          <pre><code><span class="kw">import</span> { defineConfig } <span class="kw">from</span> <span class="str">'@playwright/test'</span>;
+<span class="kw">import</span> dotenv <span class="kw">from</span> <span class="str">'dotenv'</span>;
+
+<span class="kw">const</span> args = process.argv.join(<span class="str">' '</span>);
+<span class="kw">const</span> defaultEnv = args.includes(<span class="str">'.api.spec'</span>) ? <span class="str">'.env.dev'</span>
+                  : args.includes(<span class="str">'.ui.spec'</span>)  ? <span class="str">'.env.stage'</span>
+                  : <span class="str">'.env.stage'</span>;
+<span class="kw">const</span> envFile = process.env.ENV_FILE || defaultEnv;
+process.env.ENV_FILE = envFile; <span class="cm">// persisted so worker processes inherit correct env</span>
+dotenv.config({ path: envFile, override: <span class="kw">true</span> });
+
+<span class="kw">export default</span> defineConfig({
+  testDir: <span class="str">'./tests'</span>,
+  timeout: <span class="num">600000</span>,
+  globalSetup: <span class="str">'./src/global-setup.ts'</span>,
+  projects: [
+    {
+      name: <span class="str">'api'</span>,
+      testMatch: <span class="op">/</span>.*\.api\.spec\.ts<span class="op">/</span>,
+      use: { ignoreHTTPSErrors: <span class="kw">true</span> }
+    },
+    {
+      name: <span class="str">'ui'</span>,
+      testMatch: <span class="op">/</span>.*\.ui\.spec\.ts<span class="op">/</span>,
+      use: {
+        baseURL: process.env.BASE_UI_URL,
+        storageState: <span class="str">'storageState.json'</span>,
+        headless: process.env.HEADLESS === <span class="str">'true'</span>,
+        viewport: <span class="kw">null</span>,
+        trace: <span class="str">'on'</span>, video: <span class="str">'on'</span>, screenshot: <span class="str">'on'</span>
+      }
+    }
+  ]
+});</code></pre>
+        </div>
+      </li>
+
+    </ol>
+  </section>
+
+  <!-- 03 Folder Structure -->
+  <section class="section" id="structure">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2>Folder Structure Created</h2>
+    </div>
+    <p>The following folder structure was designed and created to organise API classes, page objects, utilities, test specs, and environment configs cleanly.</p>
+    <div class="tree">
+      <div class="tree-line"><span class="t-folder">PlaywrightProject/</span></div>
+      <div class="tree-line"><span class="t-tree">├── </span><span class="t-folder">src/</span>                       <span class="t-desc"># All source code</span></div>
+      <div class="tree-line"><span class="t-tree">│   ├── </span><span class="t-folder">api/</span>                   <span class="t-desc"># API wrapper classes (one file per module)</span></div>
+      <div class="tree-line"><span class="t-tree">│   │   ├── </span><span class="t-file">EventApi.ts</span>        <span class="t-desc"># Create / update / delete events</span></div>
+      <div class="tree-line"><span class="t-tree">│   │   ├── </span><span class="t-file">UOMApi.ts</span>          <span class="t-desc"># Unit of measure CRUD</span></div>
+      <div class="tree-line"><span class="t-tree">│   │   ├── </span><span class="t-file">ProductsApi.ts</span>     <span class="t-desc"># Product master CRUD</span></div>
+      <div class="tree-line"><span class="t-tree">│   │   └── </span><span class="t-file">... (70+ files)</span>    <span class="t-desc"># One class per API module</span></div>
+      <div class="tree-line"><span class="t-tree">│   ├── </span><span class="t-folder">pages/</span>                 <span class="t-desc"># Page Object Models for UI tests</span></div>
+      <div class="tree-line"><span class="t-tree">│   │   ├── </span><span class="t-file">CreateEventPage.ts</span> <span class="t-desc"># Locators & actions for Create Event UI</span></div>
+      <div class="tree-line"><span class="t-tree">│   │   ├── </span><span class="t-file">LoginPage.ts</span>       <span class="t-desc"># Login page interactions</span></div>
+      <div class="tree-line"><span class="t-tree">│   │   └── </span><span class="t-file">... (5 page files)</span></div>
+      <div class="tree-line"><span class="t-tree">│   ├── </span><span class="t-folder">utils/</span>                 <span class="t-desc"># Shared utilities</span></div>
+      <div class="tree-line"><span class="t-tree">│   │   ├── </span><span class="t-file">tokenStore.ts</span>      <span class="t-desc"># Stores auth token across tests</span></div>
+      <div class="tree-line"><span class="t-tree">│   │   ├── </span><span class="t-file">constants.ts</span>       <span class="t-desc"># Exports BASE_API_URL, EMAIL, etc.</span></div>
+      <div class="tree-line"><span class="t-tree">│   │   └── </span><span class="t-file">dataStore.ts</span>       <span class="t-desc"># Shared state between test steps</span></div>
+      <div class="tree-line"><span class="t-tree">│   └── </span><span class="t-file">global-setup.ts</span>        <span class="t-desc"># Runs once before all tests — handles auth</span></div>
+      <div class="tree-line"><span class="t-tree">├── </span><span class="t-folder">tests/</span>                     <span class="t-desc"># All test specifications</span></div>
+      <div class="tree-line"><span class="t-tree">│   ├── </span><span class="t-file">smoke.api.spec.ts</span>      <span class="t-desc"># Full end-to-end API smoke test</span></div>
+      <div class="tree-line"><span class="t-tree">│   ├── </span><span class="t-file">Event.api.spec.ts</span>      <span class="t-desc"># Individual module API tests</span></div>
+      <div class="tree-line"><span class="t-tree">│   ├── </span><span class="t-file">... (75+ .api.spec.ts)</span></div>
+      <div class="tree-line"><span class="t-tree">│   └── </span><span class="t-folder">ui/</span></div>
+      <div class="tree-line"><span class="t-tree">│       ├── </span><span class="t-file">CreateEventPage.ui.spec.ts</span></div>
+      <div class="tree-line"><span class="t-tree">│       └── </span><span class="t-file">... (4 .ui.spec.ts files)</span></div>
+      <div class="tree-line"><span class="t-tree">├── </span><span class="t-folder">test-data/</span>                 <span class="t-desc"># Excel files for import testing</span></div>
+      <div class="tree-line"><span class="t-tree">├── </span><span class="t-file">.env.dev</span>                   <span class="t-desc"># Dev environment credentials</span></div>
+      <div class="tree-line"><span class="t-tree">├── </span><span class="t-file">.env.stage</span>                 <span class="t-desc"># Stage environment credentials</span></div>
+      <div class="tree-line"><span class="t-tree">├── </span><span class="t-file">.env.prod</span>                  <span class="t-desc"># Production environment credentials</span></div>
+      <div class="tree-line"><span class="t-tree">├── </span><span class="t-file">storageState.json</span>          <span class="t-desc"># Saved browser session for UI tests</span></div>
+      <div class="tree-line"><span class="t-tree">├── </span><span class="t-file">playwright.config.ts</span>       <span class="t-desc"># Playwright configuration</span></div>
+      <div class="tree-line"><span class="t-tree">├── </span><span class="t-file">tsconfig.json</span>              <span class="t-desc"># TypeScript settings</span></div>
+      <div class="tree-line"><span class="t-tree">└── </span><span class="t-file">package.json</span>               <span class="t-desc"># Dependencies and run scripts</span></div>
+    </div>
+  </section>
+
+  <!-- 04 Configuration -->
+  <section class="section" id="config">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <h2>Configuration Files (.env) Created</h2>
+    </div>
+    <p>Three separate <code>.env</code> files were created — one per environment. The correct file was loaded automatically based on the test type and the <code>ENV_FILE</code> variable.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>File</th><th>Used For</th><th>API URL</th><th>UI URL</th></tr></thead>
+        <tbody>
+          <tr><td><code>.env.dev</code></td><td class="td-muted">API development tests</td><td class="td-muted">dev-api.automateevents.com</td><td class="td-muted">release branch (Amplify)</td></tr>
+          <tr><td><code>.env.stage</code></td><td class="td-muted">UI + staging API tests</td><td class="td-muted">stage-api.automateevents.com</td><td class="td-muted">stage-ui.automateevents.com</td></tr>
+          <tr><td><code>.env.prod</code></td><td class="td-muted">Production tests</td><td class="td-muted">prod-api.automateevents.com</td><td class="td-muted">web.automateevents.com</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="code-label">Example .env.stage</div>
+    <pre><code><span class="cm"># UI credentials</span>
+EMAIL=sonam.burbure@accellier.com
+PASSWORD=xxxxxxxx
+BASE_UI_URL=https://stage-ui.automateevents.com
+
+<span class="cm"># API credentials</span>
+API_EMAIL=sonam.burbure@accellier.com
+API_PASSWORD=xxxxxxxx
+TENANT_NAME=xxxxxxxx
+AUTOMATE_SECRET=xxxxxxxx
+BASE_API_URL=https://stage-api.automateevents.com</code></pre>
+  </section>
+
+  <!-- 05 API Automation -->
+  <section class="section" id="api">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <h2>API Automation Built</h2>
+    </div>
+
+    <h3>Architecture</h3>
+    <p>Each API module was given its own TypeScript class in <code>src/api/</code>. A global-setup file was written to log in once before all tests, store the auth token in memory via <code>tokenStore</code>, and make it available to every API class.</p>
+
+    <div class="code-label">src/global-setup.ts — API login was implemented as follows</div>
+    <pre><code><span class="kw">const</span> loginRes = <span class="kw">await</span> apiContext.post(<span class="str">'/api/login'</span>, {
+  data: {
+    email:       process.env.API_EMAIL,
+    password:    process.env.API_PASSWORD,
+    tenant_name: process.env.TENANT_NAME
+  }
+});
+<span class="kw">const</span> body = <span class="kw">await</span> loginRes.json();
+<span class="fn">setAuthToken</span>(body.token);
+<span class="fn">setTenantPath</span>(body.tenant_cname);
+<span class="fn">setLogonAs</span>(body.logon_as);</code></pre>
+
+    <div class="code-label">src/api/EventApi.ts — Each module was wrapped in a class like this</div>
+    <pre><code><span class="kw">export class</span> <span class="fn">EventApi</span> {
+  <span class="kw">constructor</span>(<span class="kw">private</span> apiContext: APIRequestContext) {}
+
+  <span class="kw">async</span> <span class="fn">createEvent</span>(payload: <span class="kw">any</span>) {
+    <span class="kw">const</span> { token, tenantPath, logonAs } = <span class="fn">getHeaders</span>();
+
+    <span class="kw">const</span> response = <span class="kw">await</span> this.apiContext.post(
+      <span class="str">`</span><span class="op">${</span>BASE_API_URL<span class="op">}</span><span class="str">/</span><span class="op">${</span>tenantPath<span class="op">}</span><span class="str">/api/</span><span class="op">${</span>logonAs<span class="op">}</span><span class="str">/event`</span>,
+      { headers: { Authorization: <span class="str">`Bearer </span><span class="op">${</span>token<span class="op">}</span><span class="str">`</span>,
+                   <span class="str">'x-automate-secret'</span>: process.env.AUTOMATE_SECRET },
+        data: payload }
+    );
+    <span class="kw">const</span> body = <span class="kw">await</span> response.json();
+    <span class="kw">if</span> (body?.error_msg) <span class="kw">throw new</span> Error(body.error_msg);
+    <span class="kw">return</span> body;
+  }
+}</code></pre>
+
+    <div class="code-label">tests/Event.api.spec.ts — Each test spec was written like this</div>
+    <pre><code>test(<span class="str">'Create Event'</span>, <span class="kw">async</span> ({ request }) => {
+  <span class="kw">const</span> eventApi = <span class="kw">new</span> <span class="fn">EventApi</span>(request);
+  <span class="kw">const</span> result  = <span class="kw">await</span> eventApi.<span class="fn">createEvent</span>({ ... });
+  expect(result.eventid).<span class="fn">toBeDefined</span>();
+});</code></pre>
+
+    <h3>Smoke Test</h3>
+    <p>A single end-to-end smoke test was written in <code>tests/smoke.api.spec.ts</code> that ran through all linked modules in one sequential flow — 29 steps covering setup master data, the full event lifecycle, bar card creation, auto-preplanning, and post-event modules.</p>
+
+    <div class="table-wrap" style="margin-top:1.25rem;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:7%">Step</th>
+            <th style="width:28%">Module</th>
+            <th>What was tested</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Unit of Measure (×3)</td><td class="td-muted">Created Spirits Volume, Bar Equipment Volume, and Staff Headcount UOMs with consumable quantities</td></tr>
+          <tr><td>2</td><td>Segment 1 (×21)</td><td class="td-muted">Created 7 Segment 1 records each for Product, Equipment, and Staff categories — shared across BarSetup and ItemServed</td></tr>
+          <tr><td>3</td><td>Segment 2 (×21)</td><td class="td-muted">Created 7 Segment 2 records each for Product, Equipment, and Staff categories</td></tr>
+          <tr><td>4</td><td>BarSetup</td><td class="td-muted">Created a BarSetup master record linked to the event</td></tr>
+          <tr><td>5</td><td>BarSetup Product (×3)</td><td class="td-muted">Linked 3 product segment combinations to the BarSetup</td></tr>
+          <tr><td>6</td><td>BarSetup Equipment (×3)</td><td class="td-muted">Linked 3 equipment segment combinations to the BarSetup</td></tr>
+          <tr><td>7</td><td>BarSetup Staff (×3)</td><td class="td-muted">Linked 3 staff segment combinations to the BarSetup</td></tr>
+          <tr><td>8</td><td>Item Served</td><td class="td-muted">Created an Item Served master record</td></tr>
+          <tr><td>9</td><td>IS Product (×3)</td><td class="td-muted">Linked 3 product segments to the Item Served record (different segment set from BarSetup)</td></tr>
+          <tr><td>10</td><td>IS Equipment (×3)</td><td class="td-muted">Linked 3 equipment segments to the Item Served record</td></tr>
+          <tr><td>11</td><td>IS Staff (×3)</td><td class="td-muted">Linked 3 staff segments to the Item Served record</td></tr>
+          <tr><td>12</td><td>Product Masters (×7)</td><td class="td-muted">Created 7 product master records covering all BarSetup and ItemServed segment combinations</td></tr>
+          <tr><td>13</td><td>Equipment Masters (×7)</td><td class="td-muted">Created 7 equipment master records</td></tr>
+          <tr><td>14</td><td>StaffType Masters (×7)</td><td class="td-muted">Created 7 staff type master records</td></tr>
+          <tr><td>15</td><td>Menu</td><td class="td-muted">Created an Event Menu linked to the BarSetup and Item Served</td></tr>
+          <tr><td>16</td><td>Menu Items (×2)</td><td class="td-muted">Created two menu items — one with <code>conv_person</code> rate and one with <code>conv_person_hour</code> rate</td></tr>
+          <tr><td>17</td><td>Event</td><td class="td-muted">Created the Event record linking all master data; validated that <code>eventid</code> was returned and non-zero</td></tr>
+          <tr><td>18</td><td>BarCard</td><td class="td-muted">Created a Signature BarCard linked to the event, BarSetup, and Menu with setup/cleanup datetime</td></tr>
+          <tr><td>18b</td><td>BarCard Date (×2)</td><td class="td-muted">Created one BarCard Date entry per event day (start date + end date) with service start/end times for AutoPreplan timing</td></tr>
+          <tr><td>19</td><td>EventBarCard Menu Items</td><td class="td-muted">Fetched bar card menu items by barcard ID and validated <code>qty_per_person</code> and <code>qty_per_hour</code> calculations</td></tr>
+          <tr><td>19b</td><td>EventBarLocation</td><td class="td-muted">Fetched event bar location data — required to exist before AutoPreplan runs</td></tr>
+          <tr><td>20</td><td>AutoPreplan</td><td class="td-muted">Triggered the AutoPreplan workflow via <code>/wsteps?module=event&amp;wid=5</code>; asserted <code>preplan_scheduled = "Pre Planning Sucessfully Created"</code>; handled retry logic for DB lock-wait timeouts</td></tr>
+          <tr><td>21</td><td>Event Tasks (verify)</td><td class="td-muted">Verified that auto-generated tasks were created via <code>event_taskmaster</code> after AutoPreplan; asserted count &gt; 0</td></tr>
+          <tr><td>22</td><td>Event Task (create)</td><td class="td-muted">Created a manual event task with random name, category, priority, and due date</td></tr>
+          <tr><td>22b</td><td>Event Task (update)</td><td class="td-muted">Updated the task via <code>bulkeventtask</code> endpoint (matching exact UI payload format); verified updated fields via GET</td></tr>
+          <tr><td>22c</td><td>Task Comment</td><td class="td-muted">Added a comment to the event task via <code>/comment</code> endpoint; verified via <code>relatedmodule</code> GET</td></tr>
+          <tr><td>23</td><td>Event Checklist</td><td class="td-muted">Created an event checklist, verified all fields, then updated and re-verified</td></tr>
+          <tr><td>24</td><td>Delivery Collection</td><td class="td-muted">Created a delivery/collection record with distance, equipment, and product; updated and verified both states</td></tr>
+          <tr><td>25</td><td>Event Notification</td><td class="td-muted">Created an event notification with heading, details, and type; updated and verified</td></tr>
+          <tr><td>26</td><td>Equipment Count</td><td class="td-muted">Executed an equipment count operation for the event</td></tr>
+          <tr><td>27</td><td>Stock Consumption</td><td class="td-muted">Executed a stock consumption entry linked to the event</td></tr>
+          <tr><td>28</td><td>Forecasted Sales (×3)</td><td class="td-muted">Created Budgeted, Forecasted, and Actual sales forecast records for the event</td></tr>
+          <tr><td>29</td><td>Forecasted Expenses (×3)</td><td class="td-muted">Created Budgeted/COGS, Forecasted/OPEX, and Actual/Payroll expense records; updated the first expense and verified via GET</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 06 UI Automation -->
+  <section class="section" id="ui">
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <h2>UI Automation Built</h2>
+    </div>
+
+    <h3>Architecture</h3>
+    <p>UI tests were built using the <strong>Page Object Model</strong> pattern. Global-setup was configured to launch a Chromium incognito browser, log in once, handle the tenant-selection dialog if present, and save the authenticated session to <code>storageState.json</code>. All UI test specs reused this saved session — no repeated logins were needed.</p>
+
+    <div class="code-label">src/global-setup.ts — UI login was implemented as follows</div>
+    <pre><code><span class="kw">const</span> browser = <span class="kw">await</span> chromium.<span class="fn">launch</span>({ headless: <span class="kw">false</span>, args: [<span class="str">'--incognito'</span>] });
+<span class="kw">const</span> page    = <span class="kw">await</span> browser.newContext({ viewport: <span class="kw">null</span> }).<span class="fn">then</span>(c => c.<span class="fn">newPage</span>());
+
+<span class="kw">await</span> page.<span class="fn">goto</span>(process.env.BASE_UI_URL, { waitUntil: <span class="str">'load'</span> });
+<span class="kw">await</span> page.<span class="fn">getByPlaceholder</span>(<span class="str">'Email'</span>).<span class="fn">fill</span>(process.env.EMAIL);
+<span class="kw">await</span> page.<span class="fn">locator</span>(<span class="str">'input[name="password"]'</span>).<span class="fn">fill</span>(process.env.PASSWORD);
+<span class="kw">await</span> page.<span class="fn">locator</span>(<span class="str">"//button[normalize-space()='Login']"</span>).<span class="fn">click</span>();
+
+<span class="cm">// Some environments show a tenant-selection dialog after login</span>
+<span class="kw">try</span> {
+  <span class="kw">await</span> page.<span class="fn">waitForSelector</span>(<span class="str">'input[type="radio"]'</span>, { timeout: <span class="num">5000</span> });
+  <span class="kw">await</span> page.<span class="fn">locator</span>(<span class="str">'input[type="radio"]'</span>).<span class="fn">first</span>().<span class="fn">click</span>(); <span class="cm">// selects DREAM EVENTS</span>
+} <span class="kw">catch</span> { <span class="cm">/* no dialog on this environment — skip */</span> }
+
+<span class="kw">await</span> page.<span class="fn">waitForURL</span>(url => url.toString().<span class="fn">includes</span>(<span class="str">'#/home'</span>));
+<span class="kw">await</span> context.<span class="fn">storageState</span>({ path: <span class="str">'storageState.json'</span> });</code></pre>
+
+    <div class="code-label">src/pages/CreateEventPage.ts — Page Object Models were written like this</div>
+    <pre><code><span class="kw">export class</span> <span class="fn">CreateEventPage</span> {
+  <span class="kw">readonly</span> menuBtn        = this.page.<span class="fn">locator</span>(<span class="str">"i[role='button']"</span>);
+  <span class="kw">readonly</span> eventListBtn   = this.page.<span class="fn">locator</span>(<span class="str">"a[href='#/home/events']"</span>);
+  <span class="kw">readonly</span> createEventBtn = this.page.<span class="fn">getByRole</span>(<span class="str">'button'</span>, { name: <span class="str">'Create Event'</span> });
+
+  <span class="kw">constructor</span>(<span class="kw">private</span> page: Page) {}
+
+  <span class="kw">async</span> <span class="fn">createEvent</span>() {
+    <span class="kw">await</span> this.menuBtn.<span class="fn">click</span>();
+    <span class="kw">await</span> this.eventListBtn.<span class="fn">click</span>();
+    <span class="kw">await</span> this.createEventBtn.<span class="fn">click</span>();
+  }
+}</code></pre>
+
+    <div class="callout">
+      <div class="callout-icon">💡</div>
+      <div class="callout-text"><strong>storageState.json</strong> was auto-regenerated each time global-setup ran. UI tests loaded this file to skip the login step entirely, which made each test faster and independent.</div>
+    </div>
+  </section>
+
+  <!-- 07 Scripts -->
+  <section class="section" id="scripts">
+    <div class="section-header">
+      <span class="section-num">07</span>
+      <h2>NPM Run Scripts Configured</h2>
+    </div>
+    <p>The following run scripts were configured in <code>package.json</code> to make it easy to run tests against any environment with a single command.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Script</th><th>Env</th><th>What It Runs</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>npm run api:dev</code></td>
+            <td><span class="script-env env-dev">dev</span></td>
+            <td class="td-muted">All API tests against dev environment</td>
+          </tr>
+          <tr>
+            <td><code>npm run api:stage</code></td>
+            <td><span class="script-env env-stage">stage</span></td>
+            <td class="td-muted">All API tests against stage environment</td>
+          </tr>
+          <tr>
+            <td><code>npm run api:prod</code></td>
+            <td><span class="script-env env-prod">prod</span></td>
+            <td class="td-muted">All API tests against production</td>
+          </tr>
+          <tr>
+            <td><code>npm run smoke:dev</code></td>
+            <td><span class="script-env env-dev">dev</span></td>
+            <td class="td-muted">Full smoke test (end-to-end flow) on dev</td>
+          </tr>
+          <tr>
+            <td><code>npm run smoke:stage</code></td>
+            <td><span class="script-env env-stage">stage</span></td>
+            <td class="td-muted">Full smoke test on stage</td>
+          </tr>
+          <tr>
+            <td><code>npm run ui:stage</code></td>
+            <td><span class="script-env env-stage">stage</span></td>
+            <td class="td-muted">All UI tests against stage (headless)</td>
+          </tr>
+          <tr>
+            <td><code>npm run ui:prod</code></td>
+            <td><span class="script-env env-prod">prod</span></td>
+            <td class="td-muted">All UI tests against production (headless)</td>
+          </tr>
+          <tr>
+            <td><code>npm run report</code></td>
+            <td>—</td>
+            <td class="td-muted">Open the last Playwright HTML report in browser</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Individual test files were also run directly</h3>
+    <pre><code><span class="cm"># Run one API spec</span>
+npx playwright test tests/Event.api.spec.ts
+
+<span class="cm"># Run one UI spec with visible browser</span>
+npx playwright test tests/ui/CreateEventPage.ui.spec.ts --headed
+
+<span class="cm"># Run the smoke test on dev</span>
+npx playwright test tests/smoke.api.spec.ts</code></pre>
+  </section>
+
+  <!-- 08 Reports -->
+  <section class="section" id="reports">
+    <div class="section-header">
+      <span class="section-num">08</span>
+      <h2>Reports & Debugging Configured</h2>
+    </div>
+    <p>Playwright's built-in reporting and debugging features were enabled in the config so failures were always captured with full evidence.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Feature</th><th>What Was Configured</th><th>Output Location</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>HTML Report</strong></td>
+            <td class="td-muted">Generated automatically after every run; also opened with <code>npm run report</code></td>
+            <td class="td-muted"><code>playwright-report/index.html</code></td>
+          </tr>
+          <tr>
+            <td><strong>Trace Viewer</strong></td>
+            <td class="td-muted">Recorded on every UI test run; viewed with <code>npx playwright show-trace</code></td>
+            <td class="td-muted"><code>test-results/.../*.zip</code></td>
+          </tr>
+          <tr>
+            <td><strong>Video Recording</strong></td>
+            <td class="td-muted">Enabled for all UI tests — every run was recorded automatically</td>
+            <td class="td-muted"><code>test-results/.../*.webm</code></td>
+          </tr>
+          <tr>
+            <td><strong>Screenshots</strong></td>
+            <td class="td-muted">Captured automatically on test failure</td>
+            <td class="td-muted"><code>test-results/.../*.png</code></td>
+          </tr>
+          <tr>
+            <td><strong>Headed Mode</strong></td>
+            <td class="td-muted">Used during development by passing <code>--headed</code> flag to see the browser live</td>
+            <td class="td-muted">Live Chromium window</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <div class="callout-icon">✅</div>
+      <div class="callout-text"><strong>Total coverage achieved:</strong> 75+ API test files were written covering all modules, 4 UI test files were created for critical browser flows, and 1 smoke test covered the full end-to-end event lifecycle in 29 steps: UOM → Segment1/2 → BarSetup → ItemServed → Masters → Menu → Event → BarCard → BarCard Dates → AutoPreplan → Event Tasks → Checklist → Delivery Collection → Notification → Equipment Count → Stock Consumption → Forecasted Sales/Expenses.</div>
+    </div>
+  </section>
+
+</div>

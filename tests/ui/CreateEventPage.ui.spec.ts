@@ -5,13 +5,16 @@ test('Create Event UI Test', async ({ page }) => {
   await page.goto(process.env.BASE_UI_URL + '#/home/events');
 
   const createEventPage = new CreateEventPage(page);
-  await createEventPage.createEvent();
 
-  const response = await page.waitForResponse(
+  const responsePromise = page.waitForResponse(
     (resp: Response) =>
       resp.url().includes('/event') && resp.request().method() === 'POST',
     { timeout: 60000 }
   );
+
+  await createEventPage.createEvent();
+
+  const response = await responsePromise;
 
   const body = await response.json();
   console.log('Full response body:', body);

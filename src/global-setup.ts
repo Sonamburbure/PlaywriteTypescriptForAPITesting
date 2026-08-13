@@ -7,7 +7,7 @@ import {
 } from '../src/utils/tokenStore.js';
 
 const args = process.argv.join(' ');
-const defaultEnv = args.includes('.api.spec') ? '.env.dev' : args.includes('.ui.spec') ? '.env.stage' : '.env.stage';
+const defaultEnv = args.includes('.api.spec') ? '.env.dev' : args.includes('.ui.spec') ? '.env.prod' : '.env.prod';
 const envFile = process.env.ENV_FILE || defaultEnv;
 process.env.ENV_FILE = envFile;
 dotenv.config({ path: envFile, override: true });
@@ -69,7 +69,8 @@ export default async () => {
   /* ================= UI LOGIN ================= */
   if (testType === 'ui' || !testType) {
     const browser = await chromium.launch({
-      headless: false,
+      headless: process.env.HEADLESS === 'true',
+      channel: 'chrome',
       args: ['--no-sandbox', '--disable-dev-shm-usage', '--start-maximized', '--incognito']
     });
 
@@ -86,7 +87,7 @@ export default async () => {
 
     // If tenant-selection dialog appears, select DREAM EVENTS immediately
     try {
-      await page.waitForSelector('input[type="radio"]', { timeout: 5000 });
+      await page.waitForSelector('input[type="radio"]', { timeout: 3000 });
       await page.locator('input[type="radio"]').first().click();
       console.log('✅ Selected DREAM EVENTS');
     } catch {

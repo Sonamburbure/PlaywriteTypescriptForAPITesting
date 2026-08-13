@@ -50,6 +50,7 @@ export class CreateEventPage {
   readonly equipmentPlanningDropdown: Locator;
   readonly productPlanningDropdown: Locator;
   readonly barwiseExecutionDropdown: Locator;
+  readonly supplierOrderDeliveryTo: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -86,6 +87,7 @@ export class CreateEventPage {
     this.equipmentPlanningDropdown = page.locator("select[name='event_equipment_planing_type']");
     this.productPlanningDropdown = page.locator("select[name='event_product_planing_type']");
     this.barwiseExecutionDropdown = page.locator("select[name='event_execution_type']");
+    this.supplierOrderDeliveryTo = page.locator("select[name='supplier_order_delivery_to']");
 
     // Date fields
     this.startDate = page.locator("input[autocomplete='off']").nth(0);
@@ -159,7 +161,7 @@ export class CreateEventPage {
     await this.venueSearch.click();
     await this.venueRow.click();
 
-    await this.eventManager.selectOption({ index: 6 });
+    await this.eventManager.selectOption({ label: 'Sonam Burbure' });
 
     await this.guestNumber.fill("250");
     await this.pricingMode.selectOption("646");
@@ -176,6 +178,7 @@ export class CreateEventPage {
     await this.equipmentPlanningDropdown.selectOption("648");
     await this.productPlanningDropdown.selectOption("651");
     await this.barwiseExecutionDropdown.selectOption("827");
+    await this.supplierOrderDeliveryTo.selectOption("1199");
 
     // Date fields
     await this.setTimeField(this.startDate, formatDate(start));
@@ -192,6 +195,8 @@ export class CreateEventPage {
 
     await this.saveBtn.scrollIntoViewIfNeeded();
     await this.saveBtn.click();
+
+    await this.page.waitForTimeout(20000);
 
     console.log("✅ Event created successfully");
 }};
