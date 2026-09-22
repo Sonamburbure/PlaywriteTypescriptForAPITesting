@@ -211,20 +211,18 @@ test('SMOKE: UOM(x3) → Seg1(x18) → Seg2(x18) → BarSetup → BS Prod/Equip/
       ...owner, createtime: now(), modifiedtime: now(),
     }
   };
-  async function ensureUom(name: string, consumableQty = '5000.00'): Promise<number> {
+  // NOTE: consumable_quantity on an existing UOM is not editable — to change it,
+  // use a new UOM name so a fresh record gets created with the wanted quantity.
+  async function ensureUom(name: string, consumableQty = '50.00'): Promise<number> {
     const search = await uomApi.searchUoms(`unitofmeasure_name=${name}`);
     const existing = search?.data?.[0];
     if (existing?.unitofmeasureid) {
       const currentQty = String(existing.consumable_quantity ?? '').replace(/\.?0+$/, '');
       const targetQty  = consumableQty.replace(/\.?0+$/, '');
       if (currentQty !== targetQty) {
-        await request.put(
-          `${BASE_API_URL}/${tenantPath}/api/${logonAs}/unitofmeasures/${existing.unitofmeasureid}`,
-          { headers: authHeaders, data: { custom: { consumable_quantity: consumableQty, modifiedtime: now() } } }
-        );
-        console.log(`  ✅ UOM (${name}) found: ${existing.unitofmeasureid} — updated consumable_qty to ${consumableQty}`);
+        console.log(`  ⚠️  UOM (${name}) found: ${existing.unitofmeasureid} — consumable_qty is ${existing.consumable_quantity}, expected ${consumableQty} (UOM is non-editable; rename to create a fresh one)`);
       } else {
-        console.log(`  ✅ UOM (${name}) found: ${existing.unitofmeasureid}`);
+        console.log(`  ✅ UOM (${name}) found: ${existing.unitofmeasureid} | consumable_qty: ${existing.consumable_quantity}`);
       }
       return existing.unitofmeasureid;
     }
@@ -354,15 +352,17 @@ test('SMOKE: UOM(x3) → Seg1(x18) → Seg2(x18) → BarSetup → BS Prod/Equip/
   // =====================================================================
   // STEP 1 — UNIT OF MEASURE  (3 shared UOMs)
   // =====================================================================
-  console.log('\n🔷 STEP 1: Ensure UOM records exist');
-  const UOM_PRODUCT   = 'Spirits Volume';
-  const UOM_EQUIPMENT = 'Bar Equipment Volume';
-  const UOM_STAFF     = 'Staff Headcount';
+  console.log('\n🔷 STEP 1: Ensure UOM records exist (consumable_qty = 50)');
+  // New names: the older 'Spirits Volume' / 'Bar Equipment Volume' records were
+  // created with consumable_qty 5000 and cannot be edited, so use fresh UOMs.
+  const UOM_PRODUCT   = 'Spirits Volume Qty50';
+  const UOM_EQUIPMENT = 'Bar Equipment Volume Qty50';
+  const UOM_STAFF     = 'Staff Headcount Qty50';
 
   const [uomProductId, uomEquipmentId, uomStaffId] = await runConcurrent([
-    () => ensureUom(UOM_PRODUCT,    '5000.00'),
-    () => ensureUom(UOM_EQUIPMENT,  '5000.00'),
-    () => ensureUom(UOM_STAFF,      '50.00'),    // staff uses small consumable quantity
+    () => ensureUom(UOM_PRODUCT,    '50.00'),
+    () => ensureUom(UOM_EQUIPMENT,  '50.00'),
+    () => ensureUom(UOM_STAFF,      '50.00'),
   ], 1);
   expect.soft(uomProductId).toBeDefined();
   expect.soft(uomEquipmentId).toBeDefined();
@@ -2012,9 +2012,9 @@ test('SMOKE: UOM(x3) → Seg1(x18) → Seg2(x18) → BarSetup → BS Prod/Equip/
   // =====================================================================
   console.log('\n🎉 SMOKE TEST COMPLETE');
   console.log('─────────────────────────────────────────────────────');
-  console.log('  UOM Product   (Spirits Volume):        ', uomProductId);
-  console.log('  UOM Equipment (Bar Equipment Volume):  ', uomEquipmentId);
-  console.log('  UOM Staff     (Staff Headcount):       ', uomStaffId);
+  console.log(`  UOM Product   (${UOM_PRODUCT}):        `, uomProductId);
+  console.log(`  UOM Equipment (${UOM_EQUIPMENT}):  `, uomEquipmentId);
+  console.log(`  UOM Staff     (${UOM_STAFF}):       `, uomStaffId);
   console.log('  Product Seg1 IDs:                      ', prodSeg1Ids);
   console.log('  Product Seg2 IDs:                      ', prodSeg2Ids);
   console.log('  Equip Seg1 IDs:                        ', equipSeg1Ids);
