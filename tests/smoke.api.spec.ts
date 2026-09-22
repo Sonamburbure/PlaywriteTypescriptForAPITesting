@@ -941,6 +941,7 @@ test('SMOKE: UOM(x3) → Seg1(x18) → Seg2(x18) → BarSetup → BS Prod/Equip/
       daily_end_time: dailyEndTime,
       staff_start_time: staffStartTime,
       staff_end_time: staffEndTime,
+      event_unit_cost_method:1209,
       setup_datetime: formatDateTime(setupDt),
       cleanup_datetime: formatDateTime(cleanupDt),
       total_invoiced: '4000.00',
