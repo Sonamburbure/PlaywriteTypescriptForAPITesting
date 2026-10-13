@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 // Auto-detect env file from spec pattern when ENV_FILE not set
 const args = process.argv.join(' ');
-const defaultEnv = args.includes('.api.spec') ? '.env.dev' : args.includes('.ui.spec') ? '.env.prod' : '.env.prod';
+const defaultEnv = args.includes('.api.spec') ? '.env.dev' : args.includes('.ui.spec') ? '.env.stage' : '.env.stage';
 const envFile = process.env.ENV_FILE || defaultEnv;
 
 // Persist so worker processes (which don't have the test file in argv) inherit the correct env
@@ -50,7 +50,7 @@ export default defineConfig({
         headless: process.env.HEADLESS === 'true',
         viewport: null,
         ignoreHTTPSErrors: true,
-        screenshot: 'on',
+        screenshot: { mode: 'on', fullPage: true },
         trace: 'on',
         video: 'on',
 

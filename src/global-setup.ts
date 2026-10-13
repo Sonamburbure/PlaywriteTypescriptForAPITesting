@@ -8,7 +8,7 @@ import {
 } from '../src/utils/tokenStore.js';
 
 const args = process.argv.join(' ');
-const defaultEnv = args.includes('.api.spec') ? '.env.dev' : args.includes('.ui.spec') ? '.env.prod' : '.env.prod';
+const defaultEnv = args.includes('.api.spec') ? '.env.dev' : args.includes('.ui.spec') ? '.env.stage' : '.env.stage';
 const envFile = process.env.ENV_FILE || defaultEnv;
 process.env.ENV_FILE = envFile;
 dotenv.config({ path: envFile, override: true });
