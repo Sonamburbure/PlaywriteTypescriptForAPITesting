@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test';
+﻿import { defineConfig } from '@playwright/test';
 import dotenv from 'dotenv';
 
 // Auto-detect env file from spec pattern when ENV_FILE not set
@@ -51,8 +51,8 @@ export default defineConfig({
         viewport: null,
         ignoreHTTPSErrors: true,
         screenshot: { mode: 'on', fullPage: true },
-        trace: 'on',
-        video: 'on',
+        trace: 'retain-on-failure',
+        video: 'retain-on-failure',
 
         launchOptions: {
           args: [

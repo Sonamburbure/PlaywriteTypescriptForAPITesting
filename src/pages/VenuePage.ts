@@ -1,12 +1,12 @@
-import { Page, Locator } from '@playwright/test';
+ï»¿import { Page, Locator } from '@playwright/test';
 
 export class VenuePage {
   readonly page: Page;
 
-  // List page — Create button
+  // List page â€” Create button
   readonly createVenueBtn: Locator;
 
-  // List page — Search filters
+  // List page â€” Search filters
   readonly searchNameInput: Locator;
   readonly searchRefInput: Locator;
   readonly searchBtn: Locator;
@@ -55,7 +55,7 @@ export class VenuePage {
     this.streetAddress = page.locator("textarea[name='venue_address']");
     this.town = page.locator("input[name='venue_city']");
     this.postCode = page.locator("input[name='venue_post_code']");
-    // County — React Select combobox
+    // County â€” React Select combobox
     this.countySearchInput = page.locator("input[id^='react-select-'][id$='-input']").first();
     this.country = page.locator("select[name='venue_country']");
 
@@ -77,7 +77,7 @@ export class VenuePage {
       await this.page.reload();
       await this.createVenueBtn.waitFor({ state: 'visible' });
     }
-    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForLoadState('domcontentloaded');
   }
 
   async clickCreate() {
@@ -97,7 +97,7 @@ export class VenuePage {
   async selectOptionByText(select: Locator, text: RegExp): Promise<string> {
     const labels = (await select.locator('option').allInnerTexts()).map(t => t.trim());
     const label = labels.find(t => text.test(t));
-    if (!label) throw new Error(`No option matching ${text} — available: ${labels.join(', ')}`);
+    if (!label) throw new Error(`No option matching ${text} â€” available: ${labels.join(', ')}`);
     await select.selectOption({ label });
     return label;
   }
@@ -129,7 +129,7 @@ export class VenuePage {
     if (data.phone) await this.venuePhone.fill(data.phone);
     if (data.email) await this.venueEmail.fill(data.email);
     // assign_to left as default Sonam Burbure (only used in bulk), venue_country left as default United Kingdom
-    // Ref is AUTO GENERATED — never fill
+    // Ref is AUTO GENERATED â€” never fill
 
     if (data.address) await this.streetAddress.fill(data.address);
     if (data.town) await this.town.fill(data.town);
@@ -146,7 +146,7 @@ export class VenuePage {
     if (filters.name) await this.searchNameInput.fill(filters.name);
     if (filters.ref) await this.searchRefInput.fill(filters.ref);
     await this.searchBtn.click();
-    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForLoadState('domcontentloaded');
   }
 
   async createVenue(data: Parameters<VenuePage['fillForm']>[0]) {
@@ -159,7 +159,7 @@ export class VenuePage {
   // -- Row actions (list page) -----------------------------
   // -- Row actions (list page) -----------------------------
   // Actions column icons, in order: Edit (pencil), Duplicate (copy), View (eye)
-  // Phone is NOT a list column — rows match by unique name only
+  // Phone is NOT a list column â€” rows match by unique name only
   rowByName(name: string, _phone?: string): Locator {
     return this.page.locator('tbody tr').filter({ hasText: name }).first();
   }
@@ -222,6 +222,6 @@ export class VenuePage {
 
   async clearSearch() {
     await this.clearSearchBtn.click();
-    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForLoadState('domcontentloaded');
   }
 }
