@@ -51,8 +51,8 @@ export default defineConfig({
         viewport: null,
         ignoreHTTPSErrors: true,
         screenshot: { mode: 'on', fullPage: true },
-        trace: 'retain-on-failure',
-        video: 'retain-on-failure',
+        trace: 'on',
+        video: 'on',
 
         launchOptions: {
           args: [
