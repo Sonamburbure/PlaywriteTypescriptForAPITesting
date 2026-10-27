@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+﻿import dotenv from 'dotenv';
 import fs from 'fs';
 import { request, chromium } from '@playwright/test';
 import {
@@ -17,9 +17,9 @@ export default async () => {
   const detectedType = args.includes('.api.spec') ? 'api' : args.includes('.ui.spec') ? 'ui' : undefined;
   const testType = process.env.TEST_TYPE || detectedType;
 
-  console.log('🚀 Starting global setup...');
+  console.log('ðŸš€ Starting global setup...');
   console.log('   ENV FILE  :', envFile);
-  console.log('   TEST TYPE :', testType || '(not set — defaulting to ui)');
+  console.log('   TEST TYPE :', testType || '(not set â€” defaulting to ui)');
   console.log('   API URL   :', process.env.BASE_API_URL);
   console.log('   UI URL    :', process.env.BASE_UI_URL);
 
@@ -35,7 +35,7 @@ export default async () => {
       }
     });
 
-    console.log('🔑 API EMAIL:', process.env.API_EMAIL);
+    console.log('ðŸ”‘ API EMAIL:', process.env.API_EMAIL);
 
     try {
       const loginRes = await apiContext.post('/api/login', {
@@ -47,10 +47,10 @@ export default async () => {
       });
 
       const text = await loginRes.text();
-      console.log('🔍 API Login Response:', text);
+      console.log('ðŸ” API Login Response:', text);
 
       if (!loginRes.ok()) {
-        throw new Error(`❌ API Login failed: ${loginRes.status()} \n${text}`);
+        throw new Error(`âŒ API Login failed: ${loginRes.status()} \n${text}`);
       }
 
       const body = JSON.parse(text);
@@ -58,9 +58,9 @@ export default async () => {
       setTenantPath(body.tenant_cname);
       setLogonAs(body.logon_as);
 
-      console.log('🎉 API login successful');
+      console.log('ðŸŽ‰ API login successful');
     } catch (err: any) {
-      console.error('❌ API login failed:', err.message);
+      console.error('âŒ API login failed:', err.message);
       throw err;
     } finally {
       await apiContext.dispose();
@@ -80,7 +80,7 @@ export default async () => {
     page.on('console', msg => console.log(`   [browser console:${msg.type()}]`, msg.text()));
     page.on('pageerror', err => console.log('   [browser pageerror]', err.message));
 
-    console.log('🌐 Navigating to:', process.env.BASE_UI_URL);
+    console.log('ðŸŒ Navigating to:', process.env.BASE_UI_URL);
 
     try {
       await page.goto(process.env.BASE_UI_URL!, { waitUntil: 'load' });
@@ -89,12 +89,12 @@ export default async () => {
       await page.locator('input[name="password"]').fill(process.env.PASSWORD!);
       await page.locator("//button[normalize-space()='Login']").click();
     } catch (err: any) {
-      console.log('❌ Login page did not render as expected. Capturing diagnostics...');
+      console.log('âŒ Login page did not render as expected. Capturing diagnostics...');
       console.log('   Current URL:', page.url());
       console.log('   Page title :', await page.title().catch(() => '(unavailable)'));
       await page.screenshot({ path: 'global-setup-failure.png', fullPage: true }).catch(() => {});
       fs.writeFileSync('global-setup-failure.html', await page.content().catch(() => '(unavailable)'));
-      console.log('   📸 Saved global-setup-failure.png and global-setup-failure.html');
+      console.log('   ðŸ“¸ Saved global-setup-failure.png and global-setup-failure.html');
       throw err;
     }
 
@@ -102,19 +102,19 @@ export default async () => {
     try {
       await page.waitForSelector('input[type="radio"]', { timeout: 3000 });
       await page.locator('input[type="radio"]').first().click();
-      console.log('✅ Selected DREAM EVENTS');
+      console.log('âœ… Selected DREAM EVENTS');
     } catch {
-      console.log('⏭️  No tenant dialog — skipping');
+      console.log('â­ï¸  No tenant dialog â€” skipping');
     }
 
     await page.waitForURL(url => url.toString().includes('#/home'), { timeout: 60000 });
-    console.log('📍 Landed on:', page.url());
 
-    console.log('🎉 UI login successful');
+    console.log('ðŸŽ‰ UI login successful');
 
     await context.storageState({ path: 'storageState.json' });
-    console.log('💾 storageState.json saved');
+    console.log('ðŸ’¾ storageState.json saved');
 
     await browser.close();
   }
+
 };

@@ -44,9 +44,8 @@ export class TaskMasterPage {
 
     // Form — Task Type* label carries the required asterisk as a separate
     // node, so the starts-with variant is used here.
-    this.taskType = this.fieldByLabelStartsWith('Task Type');
-    // Dropdowns — `name` attrs from the API spec + generic fallback, .first()
-    // for resilience; if unmatched at runtime the thrown error names the field.
+    // Ref input is name='taskmaster_num' (per live DOM) so the Task Type input takes the API key name.
+    this.taskType = page.locator("input[name='taskmaster_name']").first();
     this.category = page
       .locator("select[name='taskmaster_category'], select[name='category']")
       .first();
