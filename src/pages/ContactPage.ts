@@ -203,7 +203,7 @@ export class ContactPage {
       }
       return node;
     });
-    const rootEl = rootHandle.asElement();
+    const rootEl = rootHandle.asElement() as ElementHandle<HTMLElement> | null;
     if (!rootEl) {
       await this.page.keyboard.press('Escape').catch(() => {});
       console.log('Related To skipped — lookup popup did not open');

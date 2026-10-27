@@ -45,6 +45,7 @@ export class CommentPage {
     // Label-anchored: union name attrs are guesses and matched nothing on the live form
     this.subject = this.fieldByLabel('Subject');
     this.commentsText = this.commentsTextareaByLabel();
+    this.commentBy = page.locator("select[name='assign_to'], select[name='comment_by']").first();
 
     // Buttons
     this.saveBtn = page.getByRole('button', { name: 'Save' }).first();
@@ -113,15 +114,16 @@ export class CommentPage {
   }
 
   // Save, then either land on detail or catch the "Related Record" validation popup.
+  // Absence of a popup is NOT an error — only a visible popup blocks.
   // Returns the popup message when blocked — X-clicked shut so the run can continue.
   async saveAndWaitForResult(): Promise<{ saved: boolean; message?: string; screenshot?: any }> {
     await this.save();
     const blockedMsg = this.page.getByText(/Please provide Related Record/i).first();
-    const outcome = await Promise.race([
-      this.waitForDetailPage().then(() => 'saved' as const),
-      blockedMsg.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'blocked' as const),
-    ]);
-    if (outcome === 'saved') return { saved: true };
+    const blocked = await blockedMsg.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false);
+    if (!blocked) {
+      await this.waitForDetailPage();
+      return { saved: true };
+    }
     const shotPath = `test-results/related-record-error-${Date.now()}.png`;
     const shot = await this.page.screenshot({ path: shotPath, fullPage: true }).catch(() => null);
     const message = ((await blockedMsg.innerText().catch(() => '')) || 'Related Record required').trim();
